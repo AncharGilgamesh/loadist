@@ -160,13 +160,6 @@
          <widget class="QTableView" name="leftTableView"/>
         </item>
         <item>
-         <widget class="QPushButton" name="testButton">
-          <property name="text">
-           <string>Test</string>
-          </property>
-         </widget>
-        </item>
-        <item>
          <widget class="QLabel" name="label_2">
           <property name="font">
            <font>
