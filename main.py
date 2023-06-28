@@ -67,9 +67,9 @@ class MainWindow(QMainWindow):
         self.update_work_table()
         self.update_prepods_dict()
         self.updatePrepodsComboBox()
-        self.testButton.clicked.connect(self.row_inserting_mod)
-        self.transferButton.clicked.connect(self.row_inserting_mod)
-        self.transferBackButton.clicked.connect(self.row_outserting_mod)
+        # self.testButton.clicked.connect(self.testing_func)
+        self.transferButton.clicked.connect(self.row_inserting)
+        self.transferBackButton.clicked.connect(self.row_outserting)
         self.loadButton.clicked.connect(self.loadData)
         self.uploadButton.clicked.connect(self.uploadData)
         self.saveMainNagruzka.clicked.connect(self.save_obsh_nagruzka)
@@ -158,145 +158,6 @@ class MainWindow(QMainWindow):
         self.setWindowIcon(QtGui.QIcon(
             QtGui.QPixmap(':/icons/Images/logo.png')))
         self.setWindowTitle('Распределитель учебной нагрзуки')
-
-    def get_checked_indexes(self, model, selected_indexes):
-        """func."""
-        # selected_indexes = tbl_view.selectedIndexes()
-        if not selected_indexes:
-            QMessageBox.warning(self, 'Ошибка', 'Выберите ячейки')
-            return
-        # для хранения выбранных строк
-        # model = tbl_view.model()
-        row_data = {}
-        for index in selected_indexes:
-            # строка текущего индекса
-            row = index.row()
-            # столбец текущего индекса
-            column = index.column()
-            if row in row_data.keys():
-                col_value = str(model.index(row, column).data())
-                row_data[row][column] = col_value
-            else:
-                """
-                Если строка в цикле первый раз, то мы заполняем ее.
-                Первый цикл заполняет столбцы до учебных часов.
-                Второй цикл забивает нулями строку, если индекс
-                строки не равен индексу выбранного столбца. Если индекс
-                строки будет равен индексу выбранного столбца, то ему будет
-                присвоено значение из таблицы
-                """
-                current_row = []
-                selected_item = None
-                for col in range(9):
-                    current_row.append(str(model.index(row, col).data()))
-                if 'Руководство аспирантом' in model.index(row, 6).data():
-                    names = DH.extract_names(model.index(row, 6).data())
-                    dialog = NameSelectionDialog(names)
-                    if dialog.exec_() == QDialog.Accepted:
-                        selected_item = dialog.get_selected_item()
-                        current_row[6] = 'Руководство аспирантом (' + selected_item + ')'
-                        current_row[8] = int(current_row[8]) - 1
-                for col in range(9, model.columnCount()):
-                    if col == column:
-                        current_row.append(str(model.index(row, col).data()))
-                    else:
-                        current_row.append('')
-                row_data[row] = current_row
-        return row_data, selected_item
-
-    def check_for_selection(self, model, selected_indexes):
-        """func."""
-        edited = model.get_edited_cells()
-        selected_index_control = {}
-        for index in selected_indexes:
-            # строка текущего индекса
-            row = index.row()
-            # столбец текущего индекса
-            column = index.column()
-            if row in selected_index_control.keys():
-                selected_index_control[row].add(column)
-            else:
-                selected_index_control[row] = {column}
-        selected = selected_index_control
-        keys_to_delete = set()
-        for k in edited.keys():
-            if k in selected.keys():
-                # Разность множеств
-                edited[k] = edited[k] - selected[k]
-                if not edited[k]:
-                    keys_to_delete.add(k)
-        for k in keys_to_delete:
-            del edited[k]
-        if edited:
-            for k, v in edited.items():
-                for i in v:
-                    model.get_back_not_selected_edited_cols(k, i)
-        return edited
-
-    def add_rows_to_second_table(self, model_to_insert, row_data, startRow):
-        """func."""
-        modelIds = model_to_insert.getIds()
-        rows_to_insert = [x for x in row_data.values()]
-        for row in rows_to_insert:
-            if row[0] in modelIds:
-                model_to_insert.addToRow(
-                    modelIds[row[0]], row, startRow)
-            else:
-                model_to_insert.appendRow(row)
-                model_to_insert.addId(row[0])
-
-    def row_inserting_mod(self):
-        """func."""
-        model = self.leftTableView.model()
-        selected_indexes = self.leftTableView.selectedIndexes()
-        row_data, selected_item = self.get_checked_indexes(
-            model, selected_indexes)
-        # check_for_difference
-        difference = self.check_hours(row_data)
-        if difference < 0:
-            self.get_back_basic()
-            model.clearChangesDict()
-            model.clearBasicDict()
-            model.clear_edited_dict()
-            QMessageBox.warning(
-                self,
-                'Ошибка',
-                'Часы превышены на ' + str(abs(difference))
-            )
-            return
-        # check for selection
-        edited = self.check_for_selection(model, selected_indexes)
-        # replace_rows
-        self.replace_rows(row_data, selected_item, edited)
-        model.clear_edited_dict()
-        self.leftTableView.reset()
-        # adding_rows
-        model_name = self.mainTeacherComboBox.currentText()
-        model_to_insert = self._rtblModels[model_name]
-        startRow = model._startEditRow
-        self.add_rows_to_second_table(model_to_insert, row_data, startRow)
-        model.clearChangesDict()
-        model.clearBasicDict()
-
-    def row_outserting_mod(self):
-        """func."""
-        selected_indexes = self.rightTableView.selectedIndexes()
-        model_name = self.mainTeacherComboBox.currentText()
-        model = self._rtblModels[model_name]
-        row_data, selected_item = self.get_checked_indexes(
-            model, selected_indexes)
-        # check for selection
-        edited = self.check_for_selection(model, selected_indexes)
-        # replace_rows
-        self.replace_rows_outserting(row_data, selected_item, edited)
-        model.clear_edited_dict()
-        self.rightTableView.reset()
-        # adding rows
-        model_to_insert = self.model1
-        startRow = model._startEditRow
-        self.add_rows_to_second_table(model_to_insert, row_data, startRow)
-        model.clearChangesDict()
-        model.clearBasicDict()
 
     def row_inserting(self):
         """func."""
@@ -402,6 +263,12 @@ class MainWindow(QMainWindow):
         # Обновляем модели после передачи информации
         self.model1.clearChangesDict()
         self.model1.clearBasicDict()
+
+    def testing_func(self):
+        """func."""
+        data = SQH.select_settings()[0][-4:]
+        print(data)
+        # Все это осталось сделать универсальным и закинуть в общую систему
 
     def compare_selection_and_edit(self, model, edited_cells, selected_indx):
         """func."""
