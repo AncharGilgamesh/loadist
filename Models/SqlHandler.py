@@ -644,9 +644,3 @@ def remove_work_table_where_teacher(id):
             (id,),
         )
         con.commit()
-
-
-if __name__ == '__main__':
-    create_teachers_table()
-    data = select_all_from_table('teachers')
-    print(data)

@@ -4,7 +4,7 @@ Sorry for that
 """
 
 from PyQt5.QtWidgets import QApplication, QMainWindow, QFileDialog,\
-      QMessageBox, QDialog
+      QMessageBox
 from PyQt5.QtCore import Qt
 from PyQt5 import QtGui
 from PyQt5.uic import loadUi
@@ -15,7 +15,6 @@ from UICode.GroupAdd import GroupAdd
 from UICode.NapPodAdd import NapPodAdd
 from UICode.DiscipAdd import DisciplineAdd
 from UICode.WorkTableAdd import CreateWorkTable
-from UICode.NameSelectionDialog import NameSelectionDialog
 from UICode.SettingsDialog import SettingsDialog
 from Models.Models import MyModel, KafedraModels, MyListModel
 from PyQt5.QtCore import QFile, QTextStream, QPersistentModelIndex
@@ -70,7 +69,6 @@ class MainWindow(QMainWindow):
         self.update_work_table()
         self.update_prepods_dict()
         self.updatePrepodsComboBox()
-        # self.testButton.clicked.connect(self.testing_func)
         self.transferButton.clicked.connect(self.row_inserting)
         self.transferBackButton.clicked.connect(self.row_outserting)
         self.loadButton.clicked.connect(self.loadData)
@@ -114,7 +112,6 @@ class MainWindow(QMainWindow):
             lambda: self.remove_all_rows_in_table_view(self._work_tbl_model))
         # Groups
         self.addGroupButton.clicked.connect(self.open_add_group)
-        # self.delCurrentGrButton.clicked.connect(self.del_current_group)
         self.delCurrentGrButton.clicked.connect(
             lambda: self.del_current_row_in_table_view(
              self.groupsTableView, self.kafedraModel))
@@ -161,52 +158,17 @@ class MainWindow(QMainWindow):
              self.stackedWidget.currentIndex() - 1))
         self.setWindowIcon(QtGui.QIcon(
             QtGui.QPixmap(':/icons/Images/logo.png')))
-        self.setWindowTitle('Распределитель учебной нагрзуки')
+        self.setWindowTitle('Распределитель учебной нагрузки')
 
     def row_inserting(self):
-        """func."""
+        """Перенос часов выбранному преподавателю."""
         selected_indexes = self.leftTableView.selectedIndexes()
         if not selected_indexes:
             QMessageBox.warning(self, 'Ошибка', 'Выберите ячейки')
             return
-        # для хранения выбранных строк
-        row_data = {}
-        for index in selected_indexes:
-            # строка текущего индекса
-            row = index.row()
-            # столбец текущего индекса
-            column = index.column()
-            if row in row_data.keys():
-                col_value = str(self.model1.index(row, column).data())
-                row_data[row][column] = col_value
-            else:
-                """
-                Если строка в цикле первый раз, то мы заполняем ее.
-                Первый цикл заполняет столбцы до учебных часов.
-                Второй цикл забивает нулями строку, если индекс
-                строки не равен индексу выбранного столбца. Если индекс
-                строки будет равен индексу выбранного столбца, то ему будет
-                присвоено значение из таблицы
-                """
-                current_row = []
-                for col in range(9):
-                    current_row.append(str(self.model1.index(row, col).data()))
-                discipline = self.model1.index(row, 6).data()
-                if discipline and 'Руководство аспирантом' in discipline:
-                    names = DH.extract_names(discipline)
-                    dialog = NameSelectionDialog(names)
-                    if dialog.exec_() != QDialog.Accepted:
-                        return
-                    selected_item = dialog.get_selected_item()
-                    current_row[6] = (
-                        'Руководство аспирантом (' + selected_item + ')')
-                    current_row[8] = int(current_row[8]) - 1
-                for col in range(9, self.model1.columnCount()):
-                    if col == column:
-                        current_row.append(str(self.model1.index(row, col).data()))
-                    else:
-                        current_row.append('')
-                row_data[row] = current_row
+        row_data = DH.collect_selected_rows(self.model1, selected_indexes)
+        if row_data is None:
+            return
         difference = self.check_hours(row_data)
         if difference < 0:
             self.get_back_basic()
@@ -219,92 +181,14 @@ class MainWindow(QMainWindow):
                 'Часы превышены на ' + str(abs(difference))
             )
             return
-        # check for selection
-        edited = self.model1.get_edited_cells()
-        selected_index_control = {}
-        for index in selected_indexes:
-            # строка текущего индекса
-            row = index.row()
-            # столбец текущего индекса
-            column = index.column()
-            if row in selected_index_control.keys():
-                selected_index_control[row].add(column)
-            else:
-                selected_index_control[row] = {column}
-        selected = selected_index_control
-        keys_to_delete = set()
-        for k in edited.keys():
-            if k in selected.keys():
-                # Разность множеств
-                edited[k] = edited[k] - selected[k]
-                if not edited[k]:
-                    keys_to_delete.add(k)
-        for k in keys_to_delete:
-            del edited[k]
-        if edited:
-            for k, v in edited.items():
-                for i in v:
-                    self.model1.get_back_not_selected_edited_cols(k, i)
-        # в Edited хранятся те клетки, которые отредакитрованы, но не выделены
-        self.replace_rows(row_data, edited)
-        self.model1.clear_edited_dict()
-        # self.compare_selection_and_edit(
-        #     self.model1, edited_cells, selected_indexes)
-
-        # end of check
-        self.leftTableView.reset()
-        # Список для передачи в соседнюю таблицу
-        rows_to_insert = [x for x in row_data.values()]
-        # rowcount = len(rows_to_insert)
         tbl_id = self.current_work_table_id()
-        modelIds = self._rtblModels[tbl_id].getIds()
-        startRow = self.model1._startEditRow
-        for row in rows_to_insert:
-            if row[0] in modelIds:
-                self._rtblModels[tbl_id].addToRow(
-                    modelIds[row[0]], row, startRow)
-            else:
-                self._rtblModels[tbl_id].appendRow(row)
-                self._rtblModels[tbl_id].addId(row[0])
-        # Обновляем модели после передачи информации
-        self.model1.clearChangesDict()
-        self.model1.clearBasicDict()
-
-    def testing_func(self):
-        """func."""
-        data = SQH.select_settings()[0][-4:]
-        print(data)
-        # Все это осталось сделать универсальным и закинуть в общую систему
-
-    def compare_selection_and_edit(self, model, edited_cells, selected_indx):
-        """func."""
-        edited = edited_cells
-        selected_indexes = selected_indx
-        selected_index_control = {}
-        for index in selected_indexes:
-            # строка текущего индекса
-            row = index.row()
-            # столбец текущего индекса
-            column = index.column()
-            if row in selected_index_control.keys():
-                selected_index_control[row].add(column)
-            else:
-                selected_index_control[row] = {column}
-        selected = selected_index_control
-        keys_to_delete = set()
-        for k in edited.keys():
-            if k in selected.keys():
-                # Разность множеств
-                edited[k] = edited[k] - selected[k]
-                if not edited[k]:
-                    keys_to_delete.add(k)
-        for k in keys_to_delete:
-            del edited[k]
-        if edited:
-            for k, v in edited.items():
-                for i in v:
-                    model.get_back_not_selected_edited_cols(k, i)
-        model.clear_edited_dict()
+        DH.move_rows(
+            self.model1,
+            self._rtblModels[tbl_id],
+            selected_indexes,
+            row_data,
+        )
+        self.leftTableView.reset()
 
     def check_hours(self, row_data):
         """func."""
@@ -323,133 +207,18 @@ class MainWindow(QMainWindow):
             self.model1.insertRow(int(k), v)
         self.model1.updateIds()
 
-    def replace_rows(self, rep_data, edited):
-        """func."""
-        """
-        Получает разницу и меняет строки.
-        rep_data ->
-        [[i, list]]
-        i - row index, list - row
-        """
-        data_dict = self.model1.get_diff()
-        edited_keys = edited.keys()
-        list_of_keys = data_dict.keys()
-        for i in rep_data.keys():
-            asp = DH.aspirant_name_from_cell(rep_data[i][6])
-            if i in list_of_keys and i not in edited_keys:
-                self.model1.divide_changed_row(i, data_dict[i], asp)
-            elif i in list_of_keys and i in edited_keys:
-                self.model1.special_divide_row(
-                    i, rep_data[i], data_dict[i], asp)
-            else:
-                self.model1.divide_row(i, rep_data[i])
-
-    def replace_rows_outserting(self, rep_data, edited):
-        """func."""
-        model = self._rtblModels[self.current_work_table_id()]
-        data_dict = model.get_diff()
-        list_of_keys = data_dict.keys()
-        edited_keys = edited.keys()
-        for i in rep_data.keys():
-            asp = DH.aspirant_name_from_cell(rep_data[i][6])
-            if i in list_of_keys and i not in edited_keys:
-                model.divide_changed_row(i, data_dict[i], asp)
-            elif i in list_of_keys and i in edited_keys:
-                model.special_divide_row(
-                    i, rep_data[i], data_dict[i], asp)
-            else:
-                model.divide_row(i, rep_data[i])
-                # print(i, rep_data[i])
-
     def row_outserting(self):
-        """func."""
+        """Возврат часов в общую нагрузку."""
         selected_indexes = self.rightTableView.selectedIndexes()
         if not selected_indexes:
             QMessageBox.warning(self, 'Ошибка', 'Выберите ячейки')
             return
         model = self._rtblModels[self.current_work_table_id()]
-        # для хранения выбранных строк
-        row_data = {}
-        for index in selected_indexes:
-            # строка текущего индекса
-            row = index.row()
-            # столбец текущего индекса
-            column = index.column()
-            if row in row_data.keys():
-                col_value = str(model.index(row, column).data())
-                row_data[row][column] = col_value
-            else:
-                """
-                Если строка в цикле первый раз, то мы заполняем ее.
-                Первый цикл заполняет столбцы до учебных часов.
-                Второй цикл забивает нулями строку, если индекс
-                строки не равен индексу выбранного столбца. Если индекс
-                строки будет равен индексу выбранного столбца, то ему будет
-                присвоено значение из таблицы
-                """
-                current_row = []
-                for col in range(9):
-                    current_row.append(str(model.index(row, col).data()))
-                discipline = model.index(row, 6).data()
-                if discipline and 'Руководство аспирантом' in discipline:
-                    names = DH.extract_names(discipline)
-                    dialog = NameSelectionDialog(names)
-                    if dialog.exec_() != QDialog.Accepted:
-                        return
-                    selected_item = dialog.get_selected_item()
-                    current_row[6] = (
-                        'Руководство аспирантом (' + selected_item + ')')
-                    current_row[8] = int(current_row[8]) - 1
-                for col in range(9, model.columnCount()):
-                    if col == column:
-                        current_row.append(str(model.index(row, col).data()))
-                    else:
-                        current_row.append('')
-                row_data[row] = current_row
-        # check for selection
-        edited = model.get_edited_cells()
-        selected_index_control = {}
-        for index in selected_indexes:
-            # строка текущего индекса
-            row = index.row()
-            # столбец текущего индекса
-            column = index.column()
-            if row in selected_index_control.keys():
-                selected_index_control[row].add(column)
-            else:
-                selected_index_control[row] = {column}
-        selected = selected_index_control
-        keys_to_delete = set()
-        for k in edited.keys():
-            if k in selected.keys():
-                # Разность множеств
-                edited[k] = edited[k] - selected[k]
-                if not edited[k]:
-                    keys_to_delete.add(k)
-        for k in keys_to_delete:
-            del edited[k]
-        if edited:
-            for k, v in edited.items():
-                for i in v:
-                    model.get_back_not_selected_edited_cols(k, i)
-        self.replace_rows_outserting(row_data, edited)
-        model.clear_edited_dict()
+        row_data = DH.collect_selected_rows(model, selected_indexes)
+        if row_data is None:
+            return
+        DH.move_rows(model, self.model1, selected_indexes, row_data)
         self.rightTableView.reset()
-        # Список для передачи в соседнюю таблицу
-        rows_to_insert = [x for x in row_data.values()]
-        # rowcount = len(rows_to_insert)
-        modelIds = self.model1.getIds()
-        startRow = self.model1._startEditRow
-        for row in rows_to_insert:
-            if row[0] in modelIds:
-                self.model1.addToRow(
-                    modelIds[row[0]], row, startRow)
-            else:
-                self.model1.appendRow(row)
-                self.model1.addId(row[0])
-        # Обновляем модели после передачи информации
-        model.clearChangesDict()
-        model.clearBasicDict()
 
     # Настройки
     def open_settings(self):
@@ -880,15 +649,6 @@ class MainWindow(QMainWindow):
         SQH.insert_into_groups_table(data_to_save)
         self.update_groups_without_aspirants()
 
-    def del_current_group(self):
-        """Del current group."""
-        index_list = []
-        for model_index in self.groupsTableView.selectedIndexes():
-            index = QPersistentModelIndex(model_index)
-            index_list.append(index)
-        for index in index_list:
-            self.kafedraModel.removeRow(index.row())
-
     # Распределение нагрузки
     # Метка работы
     def update_prepods_dict(self):
@@ -916,8 +676,6 @@ class MainWindow(QMainWindow):
             tbl_id = self.current_work_table_id()
             if tbl_id in self._rtblModels:
                 self.rightTableView.setModel(self._rtblModels[tbl_id])
-        else:
-            print("nothing happens here")
 
     def addIds(self, data):
         """Adding ids."""

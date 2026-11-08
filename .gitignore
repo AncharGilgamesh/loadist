@@ -8,3 +8,4 @@ DB/*.db
 *.pyc
 .venv/
 .ruff_cache/
+__pycache__

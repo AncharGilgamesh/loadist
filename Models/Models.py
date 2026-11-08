@@ -108,8 +108,6 @@ class MyModel(BasicTableModel):
     def setData(self, index, value, role):
         """func."""
         if role == Qt.EditRole:
-            # print('Получаем копию изначальной строки')
-            # Копия изначальной строки
             number, error = DH.parse_non_negative_number(value)
             if error:
                 QMessageBox.warning(None, "Ошибка", error)
@@ -121,36 +119,16 @@ class MyModel(BasicTableModel):
             if number > current:
                 return False
             row_copy = self._data[index.row()].copy()
-            # print('--------------------------------------2')
-            # Если в словаре нет строки, то она добавляется
             if index.row() not in self._basic_rows.keys():
                 self._basic_rows[index.row()] = row_copy.copy()
-            # Вот словарь с базовыми значениями после добавления
-            # print(self._basic_rows)
-            # print('Получаем копию строки с измененным значением')
-            # Копия строки с измененным значением
-            # Заполняем инфу об измененных значениях
             if index.row() in self._edited_cells.keys():
                 self._edited_cells[index.row()].add(index.column())
             else:
                 self._edited_cells[index.row()] = {index.column()}
 
             row_copy[index.column()] = number
-            # print('--------------------------------------3')
-            # print(row_copy)
-            # print('--------------------------------------4')
-            # print('тут просто выставляем в модель наше новое значение,
-            #  которое было введено вручную')
             self._data[index.row()][index.column()] = number
-            # print('--------------------------------------6')
-            # print(self._data)
-            # Тут в модель посылаем сигнал, что у нас данные были изменены
             self.dataChanged.emit(index, index, [Qt.DisplayRole, Qt.EditRole])
-            # print('Показываем словарь с измененными значениями перед\
-            #  добавлением туда нового')
-            # print('--------------------------------------7')
-            # print(self._changed_rows)
-            # print('Добавляем в словарь с измененными значениями')
             difference = row_copy.copy()
             startRow = self._startEditRow
             for i in range(startRow, len(row_copy)):
@@ -164,8 +142,6 @@ class MyModel(BasicTableModel):
                 copy = float(row_copy[i])
                 difference[i] = basic - copy
             self._changed_rows[index.row()] = difference
-            # print('--------------------------------------8')
-            # print(self._changed_rows)
             return True
         return False
 
@@ -389,134 +365,6 @@ class MyModel(BasicTableModel):
         """func."""
         del self._ids[id]
 
-    def getLectionsSum(self):
-        """func."""
-        column = 9
-        sum = 0
-        data = self._data.copy()
-        sum = self.getColumnSum(data, column)
-        print(sum)
-
-    def getLab1Sum(self):
-        """func."""
-        column = 10
-        sum = 0
-        data = self._data.copy()
-        sum = self.getColumnSum(data, column)
-        print(sum)
-
-    def getLab2Sum(self):
-        """func."""
-        column = 11
-        sum = 0
-        data = self._data.copy()
-        sum = self.getColumnSum(data, column)
-        print(sum)
-
-    def getPrak1Sum(self):
-        """func."""
-        column = 12
-        sum = 0
-        data = self._data.copy()
-        sum = self.getColumnSum(data, column)
-        print(sum)
-
-    def getPrak2Sum(self):
-        """func."""
-        column = 13
-        sum = 0
-        data = self._data.copy()
-        sum = self.getColumnSum(data, column)
-        print(sum)
-
-    def getRgr1Sum(self):
-        """func."""
-        column = 14
-        sum = 0
-        data = self._data.copy()
-        sum = self.getColumnSum(data, column)
-        print(sum)
-
-    def getRgr2Sum(self):
-        """func."""
-        column = 15
-        sum = 0
-        data = self._data.copy()
-        sum = self.getColumnSum(data, column)
-        print(sum)
-
-    def getKpr1Sum(self):
-        """func."""
-        column = 16
-        sum = 0
-        data = self._data.copy()
-        sum = self.getColumnSum(data, column)
-        print(sum)
-
-    def getKpr2Sum(self):
-        """func."""
-        column = 17
-        sum = 0
-        data = self._data.copy()
-        sum = self.getColumnSum(data, column)
-        print(sum)
-
-    def getCons1Sum(self):
-        """func."""
-        column = 18
-        sum = 0
-        data = self._data.copy()
-        sum = self.getColumnSum(data, column)
-        print(sum)
-
-    def getCons2Sum(self):
-        """func."""
-        column = 19
-        sum = 0
-        data = self._data.copy()
-        sum = self.getColumnSum(data, column)
-        print(sum)
-
-    def getExam1Sum(self):
-        """func."""
-        column = 20
-        sum = 0
-        data = self._data.copy()
-        sum = self.getColumnSum(data, column)
-        print(sum)
-
-    def getExam2Sum(self):
-        """func."""
-        column = 21
-        sum = 0
-        data = self._data.copy()
-        sum = self.getColumnSum(data, column)
-        print(sum)
-
-    def getZachet1Sum(self):
-        """func."""
-        column = 22
-        sum = 0
-        data = self._data.copy()
-        sum = self.getColumnSum(data, column)
-        print(sum)
-
-    def getZachet2Sum(self):
-        """func."""
-        column = 23
-        sum = 0
-        data = self._data.copy()
-        sum = self.getColumnSum(data, column)
-        print(sum)
-
-    def getDopsum(self):
-        """func."""
-        column = 24
-        sum = 0
-        data = self._data.copy()
-        sum = self.getColumnSum(data, column)
-        print(sum)
-
     def getAllColSum(self):
         """func."""
         startCol = 9
@@ -619,8 +467,6 @@ class MyListModel(QAbstractListModel):
             row = index.row()
             value = self.__data[row]
             return value
-        if role == Qt.ToolTipRole:
-            return 'Нюхая бебру'
 
     def flags(self, index):
         """func."""

@@ -340,75 +340,82 @@ def add_value_to_brackets(additional_value, text):
     return updated_text
 
 
-def get_selected_rows(sel_index, model):
-    """func."""
+def collect_selected_rows(model, selected_indexes):
+    """Собирает переносимые строки. None, если выбор аспиранта отменён."""
     row_data = {}
-    selected_item = None
-    for index in sel_index:
-        # строка текущего индекса
+    for index in selected_indexes:
         row = index.row()
-        # столбец текущего индекса
         column = index.column()
-        if row in row_data.keys():
-            col_value = str(model.index(row, column).data())
-            row_data[row][column] = col_value
-        else:
-            """
-            Если строка в цикле первый раз, то мы заполняем ее.
-            Первый цикл заполняет столбцы до учебных часов.
-            Второй цикл забивает нулями строку, если индекс
-            строки не равен индексу выбранного столбца. Если индекс
-            строки будет равен индексу выбранного столбца, то ему будет
-            присвоено значение из таблицы
-            """
-            current_row = []
-            for col in range(9):
+        if row in row_data:
+            row_data[row][column] = str(model.index(row, column).data())
+            continue
+        current_row = []
+        for col in range(9):
+            current_row.append(str(model.index(row, col).data()))
+        discipline = model.index(row, 6).data()
+        if discipline and "Руководство аспирантом" in discipline:
+            names = extract_names(discipline)
+            dialog = NameSelectionDialog(names)
+            if dialog.exec_() != QDialog.Accepted:
+                return None
+            selected_item = dialog.get_selected_item()
+            current_row[6] = (
+                "Руководство аспирантом (" + selected_item + ")")
+            current_row[8] = int(current_row[8]) - 1
+        for col in range(9, model.columnCount()):
+            if col == column:
                 current_row.append(str(model.index(row, col).data()))
-            if 'Руководство аспирантом' in model.index(row, 6).data():
-                names = extract_names(model.index(row, 6).data())
-                dialog = NameSelectionDialog(names)
-                if dialog.exec_() == QDialog.Accepted:
-                    selected_item = dialog.get_selected_item()
-                    current_row[6] = 'Руководство аспирантом ('
-                    current_row[6] += selected_item + ')'
-                    current_row[8] = int(current_row[8]) - 1
-            for col in range(9, model.columnCount()):
-                if col == column:
-                    current_row.append(str(model.index(row, col).data()))
-                else:
-                    current_row.append('')
-            row_data[row] = current_row
-    return row_data, selected_item
+            else:
+                current_row.append("")
+        row_data[row] = current_row
+    return row_data
 
 
-def insert_rows_to_table_view(rows_to_insert, model_to_insert):
-    """func."""
-    start_row = model_to_insert._startEditRow
-    model_ids = model_to_insert.getIds()
-    for row in rows_to_insert:
+def move_rows(source, destination, selected_indexes, row_data):
+    """Переносит собранные строки из одной таблицы в другую."""
+    edited = source.get_edited_cells()
+    selected = {}
+    for index in selected_indexes:
+        row = index.row()
+        column = index.column()
+        if row in selected:
+            selected[row].add(column)
+        else:
+            selected[row] = {column}
+    empty_rows = []
+    for key in edited:
+        if key in selected:
+            edited[key] = edited[key] - selected[key]
+            if not edited[key]:
+                empty_rows.append(key)
+    for key in empty_rows:
+        del edited[key]
+    for key, columns in edited.items():
+        for column in columns:
+            source.get_back_not_selected_edited_cols(key, column)
+    data_dict = source.get_diff()
+    edited_keys = edited.keys()
+    for row_index in row_data:
+        aspirant = aspirant_name_from_cell(row_data[row_index][6])
+        if row_index in data_dict and row_index not in edited_keys:
+            source.divide_changed_row(
+                row_index, data_dict[row_index], aspirant)
+        elif row_index in data_dict and row_index in edited_keys:
+            source.special_divide_row(
+                row_index, row_data[row_index], data_dict[row_index], aspirant)
+        else:
+            source.divide_row(row_index, row_data[row_index])
+    source.clear_edited_dict()
+    model_ids = destination.getIds()
+    start_row = destination._startEditRow
+    for row in row_data.values():
         if row[0] in model_ids:
-            model_to_insert.addToRow(
-                model_ids[row[0]], row, start_row)
+            destination.addToRow(model_ids[row[0]], row, start_row)
         else:
-            model_to_insert.appendRow(row)
-            model_to_insert.addId(row[0])
-
-
-def replace_rows(model, rep_data, asp):
-    """func."""
-    """
-    Получает разницу и меняет строки.
-    rep_data ->
-    [[i, list]]
-    i - row index, list - row
-    """
-    data_dict = model.get_diff()
-    list_of_keys = data_dict.keys()
-    for i in rep_data.keys():
-        if i in list_of_keys:
-            model.divide_changed_row(i, data_dict[i], asp)
-        else:
-            model.divide_row(i, rep_data[i])
+            destination.appendRow(row)
+            destination.addId(row[0])
+    source.clearChangesDict()
+    source.clearBasicDict()
 
 
 def sum_lists(dictionary):
