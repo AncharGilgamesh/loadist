@@ -558,6 +558,16 @@ class KafedraModels(BasicTableModel):
         if role == Qt.TextAlignmentRole:
             return QVariant(Qt.AlignCenter)
 
+    def setData(self, index, value, role):
+        """func."""
+        if role != Qt.EditRole or not index.isValid():
+            return False
+        row = list(self._data[index.row()])
+        row[index.column()] = value
+        self._data[index.row()] = row
+        self.dataChanged.emit(index, index, [Qt.DisplayRole, Qt.EditRole])
+        return True
+
     def removeRows(self, position, rows, parent=QModelIndex()):
         """Remove rows from the model."""
         self.beginRemoveRows(parent, position, position + rows - 1)

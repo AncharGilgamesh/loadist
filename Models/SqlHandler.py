@@ -172,8 +172,7 @@ def insert_into_setting_table(list_to_add):
     """func."""
     with sqlite3.connect(SETTING_DB) as con:
         cur = con.cursor()
-        drop_settings_table()
-        create_settings_table()
+        cur.execute("DELETE FROM settings")
         cur.execute("""
         INSERT INTO settings (
         start_year,
@@ -188,15 +187,13 @@ def insert_into_setting_table(list_to_add):
         end_col
         ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, list_to_add)
-        con.commit()
 
 
 def insert_into_teachers_table(list_to_add):
     """func."""
     with sqlite3.connect(pathDb) as con:
         cur = con.cursor()
-        drop_table_by_name('teachers')
-        create_teachers_table()
+        cur.execute("DELETE FROM teachers")
         cur.executemany("""
         INSERT INTO teachers (
         teacher_id,
@@ -208,79 +205,62 @@ def insert_into_teachers_table(list_to_add):
         curator
         ) VALUES(?, ?, ?, ?, ?, ?, ?)
         """, list_to_add)
-        con.commit()
 
 
 def insert_into_doljnost_table(list_to_add):
     """func."""
     with sqlite3.connect(pathDb) as con:
         cur = con.cursor()
-        drop_table_by_name('doljnosti')
-        create_doljnosti_table()
+        cur.execute("DELETE FROM doljnosti")
         cur.executemany("""
         INSERT INTO doljnosti (
         doljnost, stavka
         ) VALUES( ?, ?)
          """, list_to_add)
-        con.commit()
 
 
 def insert_into_groups_table(list_to_add):
     """func."""
     with sqlite3.connect(pathDb) as con:
         cur = con.cursor()
-        query = ("""
-        DROP TABLE kafedraGroups
-        """)
-        cur.execute(query)
-        create_groups_table()
-        query = ("""
-        INSERT INTO kafedraGroups VALUES(?, ?, ?, ?, ?)
-        """)
-        cur.executemany(query, list_to_add)
-        con.commit()
+        cur.execute("DELETE FROM kafedraGroups")
+        cur.executemany(
+            "INSERT INTO kafedraGroups VALUES(?, ?, ?, ?, ?)",
+            list_to_add,
+        )
 
 
 def insert_into_napPod_table(list_to_add):
     """func."""
     with sqlite3.connect(pathDb) as con:
         cur = con.cursor()
-        query = ("""
-        DROP TABLE napPod
-        """)
-        cur.execute(query)
-        create_nap_pod_table()
-        query = ("""
-        INSERT INTO napPod VALUES(?, ?)
-        """)
-        cur.executemany(query, list_to_add)
-        con.commit()
+        cur.execute("DELETE FROM napPod")
+        cur.executemany(
+            "INSERT INTO napPod VALUES(?, ?)",
+            list_to_add,
+        )
 
 
 def insert_into_work_table(list_to_add):
     """func."""
     with sqlite3.connect(pathDb) as con:
         cur = con.cursor()
-        drop_table_by_name('workTables')
-        create_work_table()
-        query = ("""
-        INSERT INTO workTables VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """)
-        cur.executemany(query, list_to_add)
-        con.commit()
+        cur.execute("DELETE FROM workTables")
+        cur.executemany(
+            "INSERT INTO workTables VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            list_to_add,
+        )
 
 
 def insert_into_disciplines_table(list_to_add):
     """func."""
     with sqlite3.connect(pathDb) as con:
         cur = con.cursor()
-        drop_table_by_name('disciplines')
-        create_discipline_table()
-        query = ("""
-        INSERT INTO disciplines VALUES(?, ?, ?)
-        """)
-        cur.executemany(query, list_to_add)
-        con.commit()
+        cur.execute("DELETE FROM disciplines")
+        cur.executemany(
+            "INSERT INTO disciplines VALUES(?, ?, ?)",
+            list_to_add,
+        )
 
 
 def select_all_from_table(tablename):

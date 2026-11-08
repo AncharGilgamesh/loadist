@@ -9,7 +9,6 @@ from PyQt5.QtCore import Qt
 from PyQt5 import QtGui
 from PyQt5.uic import loadUi
 from Models.ExcelHandler import ExcelHandler, XlsHandler
-from Data.Teacher import Teacher
 from UICode.DoljnostiAdd import DoljnostAdd
 from UICode.PrepodAddNew import PrepodAdd
 from UICode.GroupAdd import GroupAdd
@@ -23,7 +22,7 @@ from PyQt5.QtCore import QFile, QTextStream, QPersistentModelIndex
 import Models.SqlHandler as SQH
 import Models.DataHandler as DH
 import Resources.breeze_resources
-import Resources.res_images
+import Resources.res_images  # noqa: F401  регистрация иконок Qt
 import os
 
 import sys
@@ -42,6 +41,7 @@ class MainWindow(QMainWindow):
         loadUi(UI_PATH, self)
         self._rtblModels = {}
         self._prepods = {}
+        self._prepod_labels = {}
         self.kafedraModel = None
         self.nap_pod_model = None
         self._discipline_model = None
@@ -250,16 +250,16 @@ class MainWindow(QMainWindow):
         # Список для передачи в соседнюю таблицу
         rows_to_insert = [x for x in row_data.values()]
         # rowcount = len(rows_to_insert)
-        model_name = self.mainTeacherComboBox.currentText()
-        modelIds = self._rtblModels[model_name].getIds()
+        tbl_id = self.current_work_table_id()
+        modelIds = self._rtblModels[tbl_id].getIds()
         startRow = self.model1._startEditRow
         for row in rows_to_insert:
             if row[0] in modelIds:
-                self._rtblModels[model_name].addToRow(
+                self._rtblModels[tbl_id].addToRow(
                     modelIds[row[0]], row, startRow)
             else:
-                self._rtblModels[model_name].appendRow(row)
-                self._rtblModels[model_name].addId(row[0])
+                self._rtblModels[tbl_id].appendRow(row)
+                self._rtblModels[tbl_id].addId(row[0])
         # Обновляем модели после передачи информации
         self.model1.clearChangesDict()
         self.model1.clearBasicDict()
@@ -302,10 +302,10 @@ class MainWindow(QMainWindow):
 
     def check_hours(self, row_data):
         """func."""
-        model_name = self.mainTeacherComboBox.currentText()
+        tbl_id = self.current_work_table_id()
         transfer_sum = DH.sum_lists(row_data)
-        table_sum = sum(self._rtblModels[model_name].getAllColSum())
-        table_limit = self._prepods[model_name].getTotalTime()
+        table_sum = sum(self._rtblModels[tbl_id].getAllColSum())
+        table_limit = self._prepods[tbl_id].getTotalTime()
         difference = table_limit - transfer_sum - table_sum
         return difference
 
@@ -339,8 +339,7 @@ class MainWindow(QMainWindow):
 
     def replace_rows_outserting(self, rep_data, asp, edited):
         """func."""
-        model_name = self.mainTeacherComboBox.currentText()
-        model = self._rtblModels[model_name]
+        model = self._rtblModels[self.current_work_table_id()]
         data_dict = model.get_diff()
         list_of_keys = data_dict.keys()
         edited_keys = edited.keys()
@@ -360,8 +359,7 @@ class MainWindow(QMainWindow):
         if not selected_indexes:
             QMessageBox.warning(self, 'Ошибка', 'Выберите ячейки')
             return
-        model_name = self.mainTeacherComboBox.currentText()
-        model = self._rtblModels[model_name]
+        model = self._rtblModels[self.current_work_table_id()]
         # для хранения выбранных строк
         row_data = {}
         for index in selected_indexes:
@@ -459,7 +457,8 @@ class MainWindow(QMainWindow):
         self._stat_model.insertRow(0, data_to_insert)
         # таблицы преподавателей
         if self._rtblModels:
-            DH.set_prepods_stats(self._rtblModels, self._stat_model)
+            DH.set_prepods_stats(
+                self._rtblModels, self._stat_model, self._prepod_labels)
         self.statisticTableView.resizeColumnsToContents()
 
     def save_statistics(self):
@@ -502,7 +501,11 @@ class MainWindow(QMainWindow):
         """
         selection_model = tableView.selectionModel()
         selected_indexes = selection_model.selectedRows()
-        for index in selected_indexes:
+        index_list = []
+        for model_index in selected_indexes:
+            index_list.append(QPersistentModelIndex(model_index))
+        index_list.sort(key=lambda index: index.row(), reverse=True)
+        for index in index_list:
             model.removeRow(index.row())
 
     def get_selected_row_kafedra(self, tableView, row):
@@ -714,12 +717,18 @@ class MainWindow(QMainWindow):
 
     def check_for_del_ids(self):
         """func."""
-        table_prepods_ids = self._work_tbl_model.get_col_by_name('№ пр.')
-        prepod_ids = self._teacher_tbl_model.get_col_by_name('id')
-        for id in table_prepods_ids:
-            if id not in prepod_ids:
-                SQH.remove_work_table_where_teacher(id)
-        self.save_work_table()  # Не нравится вот это
+        prepod_ids = {
+            str(teacher_id)
+            for teacher_id in self._teacher_tbl_model.get_col_by_name('id')
+        }
+        teacher_col = self._work_tbl_model.get_header().index('№ пр.')
+        rows_to_remove = []
+        for row_index, row in enumerate(self._work_tbl_model.get_data()):
+            if str(row[teacher_col]) not in prepod_ids:
+                rows_to_remove.append(row_index)
+        for row_index in reversed(rows_to_remove):
+            self._work_tbl_model.removeRow(row_index)
+        self.save_work_table()
 
     # Дисциплины
     def open_add_discipline(self):
@@ -844,14 +853,26 @@ class MainWindow(QMainWindow):
         data = SQH.select_all_from_table('workTables')
         self._prepods.clear()
         DH.update_prepods_dict(data, self._prepods)
+        self._prepod_labels = DH.work_table_labels(data)
+
+    def current_work_table_id(self):
+        """Id рабочей таблицы, выбранной в комбобоксе."""
+        combo = self.mainTeacherComboBox
+        index = combo.currentIndex()
+        model = combo.model()
+        if index < 0 or not hasattr(model, "get_id"):
+            return None
+        ids = getattr(model, "_ids", None)
+        if not ids or index >= len(ids):
+            return None
+        return model.get_id(index)
 
     def onComboBoxIndexChanged(self, index=None):
         """Set work table."""
         if self._rtblModels:
-            model_name = self.mainTeacherComboBox.currentText()
-            rtbl_keys = list(self._rtblModels.keys())
-            if model_name in rtbl_keys:
-                self.rightTableView.setModel(self._rtblModels[model_name])
+            tbl_id = self.current_work_table_id()
+            if tbl_id in self._rtblModels:
+                self.rightTableView.setModel(self._rtblModels[tbl_id])
         else:
             print("nothing happens here")
 
@@ -866,7 +887,9 @@ class MainWindow(QMainWindow):
     def updatePrepodsComboBox(self):
         """Update prepods combo model."""
         self.mainTeacherComboBox.clear()
-        model = MyListModel(list(self._prepods.keys()))
+        ids = list(self._prepods.keys())
+        labels = [self._prepod_labels[tbl_id] for tbl_id in ids]
+        model = MyListModel(labels, ids)
         self.mainTeacherComboBox.setModel(model)
 
     def makeColumnsHidden(self, tableView):
@@ -876,33 +899,34 @@ class MainWindow(QMainWindow):
         tableView.setColumnHidden(2, True)
         # tableView.setColumnHidden(8, True)
 
+    def _empty_right_model(self, key, header):
+        """Пустая правая таблица преподавателя."""
+        data = [
+            [key] * 25,
+            [key] * 25,
+            [key] * 25
+        ]
+        model = MyModel(data, header)
+        model.removeRows(0, 1)
+        model.removeRows(0, 1)
+        model.removeRows(0, 1)
+        return model
+
     def setRightModels(self, header):
         """Without this didn't work."""
-        for k in self._prepods.keys():
-            data = [
-                [k] * 25,
-                [k] * 25,
-                [k] * 25
-            ]
-            self._rtblModels[k] = MyModel(data, header)
-            self._rtblModels[k].removeRows(0, 1)
-            self._rtblModels[k].removeRows(0, 1)
-            self._rtblModels[k].removeRows(0, 1)
+        self._rtblModels = {}
+        for tbl_id in self._prepods:
+            self._rtblModels[tbl_id] = self._empty_right_model(tbl_id, header)
 
     def update_right_models(self, header):
         """Update work table models."""
-        rtbl_keys = list(self._rtblModels.keys())
-        for k in self._prepods.keys():
-            data = [
-                [k] * 25,
-                [k] * 25,
-                [k] * 25
-            ]
-            if k not in rtbl_keys:
-                self._rtblModels[k] = MyModel(data, header)
-                self._rtblModels[k].removeRows(0, 1)
-                self._rtblModels[k].removeRows(0, 1)
-                self._rtblModels[k].removeRows(0, 1)
+        for tbl_id in list(self._rtblModels):
+            if tbl_id not in self._prepods:
+                del self._rtblModels[tbl_id]
+        for tbl_id in self._prepods:
+            if tbl_id not in self._rtblModels:
+                self._rtblModels[tbl_id] = self._empty_right_model(
+                    tbl_id, header)
 
     def loadData(self):
         """
@@ -914,6 +938,16 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(
                 self, 'Ошибка', 'В программе отсутствуют рабочие таблицы')
             return
+        if self._data_loaded:
+            answer = QMessageBox.question(
+                self,
+                "Повторная загрузка",
+                "Заменить текущее распределение?",
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.No,
+            )
+            if answer != QMessageBox.Yes:
+                return
         fname, _ = QFileDialog.getOpenFileName(
             self, "Choose file", "", "Excel Files (*.xlsx *.xls *.xlsm)")
         if not fname:
@@ -950,17 +984,17 @@ class MainWindow(QMainWindow):
         self.model1.updateIds()
         self.makeColumnsHidden(self.leftTableView)
         self.setRightModels(self._header)
-        modelname = self.mainTeacherComboBox.currentText()
-        self.rightTableView.setModel(self._rtblModels[modelname])
+        tbl_id = self.current_work_table_id()
+        self.rightTableView.setModel(self._rtblModels[tbl_id])
         self.makeColumnsHidden(self.rightTableView)
         self.rightTableView.resizeColumnsToContents()
         self._data_loaded = True
 
     def check_lower_limit(self):
         """Check for lower limit."""
-        model_name = self.mainTeacherComboBox.currentText()
-        table_sum = sum(self._rtblModels[model_name].getAllColSum())
-        table_limit = self._prepods[model_name].getTotalTime()
+        tbl_id = self.current_work_table_id()
+        table_sum = sum(self._rtblModels[tbl_id].getAllColSum())
+        table_limit = self._prepods[tbl_id].getTotalTime()
         difference = table_limit - table_sum
         return difference
 
@@ -988,8 +1022,8 @@ class MainWindow(QMainWindow):
         if difference != 0:
             if not self.check_lower_limit_message():
                 return
-        modelname = self.mainTeacherComboBox.currentText()
-        data = self._rtblModels[modelname].get_data()
+        tbl_id = self.current_work_table_id()
+        data = self._rtblModels[tbl_id].get_data()
         workdata = DH.makeNumberable(data.copy())
         osen, vesna = DH.divideOsenVesna(workdata)
         # fname, _ = QFileDialog.getOpenFileName(
@@ -1006,8 +1040,7 @@ class MainWindow(QMainWindow):
 
     def get_prepod_id(self):
         """Get prepod id."""
-        key = self.mainTeacherComboBox.currentText()
-        return self._prepods[key].get_tbl_id()
+        return self._prepods[self.current_work_table_id()].get_tbl_id()
 
     def save_obsh_nagruzka(self):
         """Save obs nagruzka."""

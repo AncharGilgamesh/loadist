@@ -98,18 +98,31 @@ def update_prepods_dict(data, dict):
     data -
     [(tableid, fio, teacher_id, type,mainstavka, pochas, pochas+,  sovmest,
       total)]
+    Ключ — id рабочей таблицы, иначе вторая таблица того же типа затирает первую.
     """
-    tbl_id = None
-    tchr_id = None
-    total = None
-    key = None
     for row in data:
         tbl_id = row[0]
         tchr_id = row[2]
         total = row[-1]
-        key = return_fio_inicials(row[1], row[3])
         teacher = Teacher(tbl_id, tchr_id, total)
-        dict[key] = teacher
+        dict[tbl_id] = teacher
+
+
+def work_table_labels(data):
+    """func."""
+    bases = []
+    for row in data:
+        bases.append((row[0], return_fio_inicials(row[1], row[3])))
+    counts = {}
+    for _, label in bases:
+        counts[label] = counts.get(label, 0) + 1
+    labels = {}
+    for tbl_id, label in bases:
+        if counts[label] > 1:
+            labels[tbl_id] = f"{label} ({tbl_id})"
+        else:
+            labels[tbl_id] = label
+    return labels
 
 
 def get_settings_to_stats_table():
@@ -148,17 +161,18 @@ def get_nagruzka_stats(table_view):
     return data_to_insert
 
 
-def set_prepods_stats(rtbl_model_dict, stats_model):
+def set_prepods_stats(rtbl_model_dict, stats_model, labels):
     """func."""
-    for k, v in rtbl_model_dict.items():
-        data_to_insert = v.getAllColSum()
+    for tbl_id, model in rtbl_model_dict.items():
+        data_to_insert = model.getAllColSum()
         data_to_insert.append(sum(data_to_insert))
-        if 'почас' in k:
-            index = k.find('(почас)')
-            data_to_insert.insert(0, k[:index])
+        label = labels.get(tbl_id, str(tbl_id))
+        if 'почас' in label:
+            index = label.find('(почас)')
+            data_to_insert.insert(0, label[:index])
             data_to_insert.insert(1, 'Почасовая')
         else:
-            data_to_insert.insert(0, k)
+            data_to_insert.insert(0, label)
             data_to_insert.insert(1, 'Обычная')
         stats_model.insertRow(
             len(stats_model.get_data()), data_to_insert)

@@ -19,7 +19,7 @@ class NapPodAdd(QDialog):
     def __init__(self):
         """func."""
         super(NapPodAdd, self).__init__()
-        loadUi('PartTwo/DiplomOldUI/Working/UI/addNapPod.ui', self)
+        loadUi(UI_PATH, self)
         self.cancelButton.clicked.connect(lambda: self.close())
         self.addNapPod.clicked.connect(self.on_ok)
         self.setWindowIcon(QtGui.QIcon(
