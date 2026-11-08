@@ -214,7 +214,7 @@
             <item>
              <widget class="QTableView" name="prepodsTableView">
               <property name="selectionMode">
-               <enum>QAbstractItemView::SingleSelection</enum>
+               <enum>QAbstractItemView::ExtendedSelection</enum>
               </property>
               <property name="selectionBehavior">
                <enum>QAbstractItemView::SelectRows</enum>
@@ -283,7 +283,7 @@
             <item>
              <widget class="QTableView" name="workTableView">
               <property name="selectionMode">
-               <enum>QAbstractItemView::SingleSelection</enum>
+               <enum>QAbstractItemView::ExtendedSelection</enum>
               </property>
               <property name="selectionBehavior">
                <enum>QAbstractItemView::SelectRows</enum>
@@ -389,12 +389,6 @@
         </item>
         <item>
          <widget class="QTabWidget" name="disNapTabWidget">
-          <property name="maximumSize">
-           <size>
-            <width>1000</width>
-            <height>16777215</height>
-           </size>
-          </property>
           <property name="font">
            <font>
             <pointsize>10</pointsize>
@@ -439,7 +433,7 @@
                   <property name="minimumSize">
                    <size>
                     <width>0</width>
-                    <height>51</height>
+                    <height>0</height>
                    </size>
                   </property>
                   <property name="font">
@@ -460,8 +454,7 @@
                    </font>
                   </property>
                   <property name="text">
-                   <string>Удалить
-выбранное</string>
+                   <string>Удалить</string>
                   </property>
                  </widget>
                 </item>
@@ -473,8 +466,7 @@
                    </font>
                   </property>
                   <property name="text">
-                   <string>Удалить
-все</string>
+                   <string>Удалить все</string>
                   </property>
                  </widget>
                 </item>
@@ -483,7 +475,7 @@
                   <property name="minimumSize">
                    <size>
                     <width>0</width>
-                    <height>51</height>
+                    <height>0</height>
                    </size>
                   </property>
                   <property name="font">
@@ -551,7 +543,7 @@
                   <property name="minimumSize">
                    <size>
                     <width>0</width>
-                    <height>51</height>
+                    <height>0</height>
                    </size>
                   </property>
                   <property name="font">
@@ -572,8 +564,7 @@
                    </font>
                   </property>
                   <property name="text">
-                   <string>Удалить
-выбранное</string>
+                   <string>Удалить</string>
                   </property>
                  </widget>
                 </item>
@@ -585,8 +576,7 @@
                    </font>
                   </property>
                   <property name="text">
-                   <string>Удалить
-все</string>
+                   <string>Удалить все</string>
                   </property>
                  </widget>
                 </item>
@@ -595,7 +585,7 @@
                   <property name="minimumSize">
                    <size>
                     <width>0</width>
-                    <height>51</height>
+                    <height>0</height>
                    </size>
                   </property>
                   <property name="font">
@@ -661,7 +651,7 @@
                 <property name="minimumSize">
                  <size>
                   <width>0</width>
-                  <height>51</height>
+                  <height>0</height>
                  </size>
                 </property>
                 <property name="font">
@@ -682,8 +672,7 @@
                  </font>
                 </property>
                 <property name="text">
-                 <string>Удалить
-выбранное</string>
+                 <string>Удалить</string>
                 </property>
                </widget>
               </item>
@@ -695,8 +684,7 @@
                  </font>
                 </property>
                 <property name="text">
-                 <string>Удалить
-все</string>
+                 <string>Удалить все</string>
                 </property>
                </widget>
               </item>
@@ -705,7 +693,7 @@
                 <property name="minimumSize">
                  <size>
                   <width>0</width>
-                  <height>51</height>
+                  <height>0</height>
                  </size>
                 </property>
                 <property name="font">
@@ -769,7 +757,7 @@
                 <property name="minimumSize">
                  <size>
                   <width>0</width>
-                  <height>51</height>
+                  <height>0</height>
                  </size>
                 </property>
                 <property name="font">
@@ -790,8 +778,7 @@
                  </font>
                 </property>
                 <property name="text">
-                 <string>Удалить
-выбранное</string>
+                 <string>Удалить</string>
                 </property>
                </widget>
               </item>
@@ -803,8 +790,7 @@
                  </font>
                 </property>
                 <property name="text">
-                 <string>Удалить
-все</string>
+                 <string>Удалить все</string>
                 </property>
                </widget>
               </item>
@@ -813,7 +799,7 @@
                 <property name="minimumSize">
                  <size>
                   <width>0</width>
-                  <height>51</height>
+                  <height>0</height>
                  </size>
                 </property>
                 <property name="font">
@@ -867,6 +853,7 @@
     <addaction name="loadDataAction"/>
     <addaction name="saveNagrAction"/>
     <addaction name="savePrepodNagrAction"/>
+    <addaction name="saveAllPrepodNagrAction"/>
     <addaction name="separator"/>
     <addaction name="settingsAction"/>
     <addaction name="exitAction"/>
@@ -917,6 +904,11 @@
   <action name="savePrepodNagrAction">
    <property name="text">
     <string>Сохранить нагрузку преподавателя</string>
+   </property>
+  </action>
+  <action name="saveAllPrepodNagrAction">
+   <property name="text">
+    <string>Сохранить нагрузку всех преподавателей</string>
    </property>
   </action>
   <action name="settingsAction">

@@ -1,7 +1,14 @@
 """Models."""
 
-from PyQt5.QtCore import QAbstractTableModel, Qt, QModelIndex, QVariant,\
-      QAbstractListModel
+from PyQt5.QtCore import (
+    QAbstractListModel,
+    QAbstractTableModel,
+    QModelIndex,
+    Qt,
+    QVariant,
+)
+from PyQt5.QtWidgets import QMessageBox
+
 import Models.DataHandler as DH
 
 
@@ -33,7 +40,7 @@ class BasicTableModel(QAbstractTableModel):
                 if section < len(self._header):
                     return self._header[section]
                 else:
-                    return 'Проверка'
+                    return "Проверка"
 
     def get_data(self):
         """func."""
@@ -51,7 +58,7 @@ class MyModel(BasicTableModel):
         """func."""
         super(MyModel, self).__init__(data, header)
         # self._data = data
-        self._header = ['id'] + header
+        self._header = ["id"] + header
         # Начальная вариация строки
         self._basic_rows = {}
         # Разница между начальной вариацей строки и конечной
@@ -75,9 +82,9 @@ class MyModel(BasicTableModel):
         if role == Qt.DisplayRole:
             value = self._data[index.row()][index.column()]
             if value is None:
-                return ''
+                return ""
             if value == 0 and index.column() > 0:
-                return ''
+                return ""
             if isinstance(value, float) and value % 1 == 0:
                 value = int(value)
             return value
@@ -97,7 +104,7 @@ class MyModel(BasicTableModel):
         column = index.column()
         if column >= self._startEditRow:
             value = self.data(index, Qt.DisplayRole)
-            if value is None or value == '':
+            if value is None or value == "":
                 return Qt.ItemIsEnabled
             else:
                 return Qt.ItemIsEnabled | Qt.ItemIsSelectable | Qt.ItemIsEditable
@@ -107,58 +114,40 @@ class MyModel(BasicTableModel):
     def setData(self, index, value, role):
         """func."""
         if role == Qt.EditRole:
-            # print('Получаем копию изначальной строки')
-            # Копия изначальной строки
-            if float(value) < 0:
+            number, error = DH.parse_non_negative_number(value)
+            if error:
+                QMessageBox.warning(None, "Ошибка", error)
                 return False
-            if float(value) > float(self._data[index.row()][index.column()]):
+            try:
+                current = float(self._data[index.row()][index.column()])
+            except (TypeError, ValueError):
+                return False
+            if number > current:
                 return False
             row_copy = self._data[index.row()].copy()
-            # print('--------------------------------------2')
-            # Если в словаре нет строки, то она добавляется
             if index.row() not in self._basic_rows.keys():
                 self._basic_rows[index.row()] = row_copy.copy()
-            # Вот словарь с базовыми значениями после добавления
-            # print(self._basic_rows)
-            # print('Получаем копию строки с измененным значением')
-            # Копия строки с измененным значением
-            # Заполняем инфу об измененных значениях
             if index.row() in self._edited_cells.keys():
                 self._edited_cells[index.row()].add(index.column())
             else:
                 self._edited_cells[index.row()] = {index.column()}
 
-            row_copy[index.column()] = float(value)
-            # print('--------------------------------------3')
-            # print(row_copy)
-            # print('--------------------------------------4')
-            # print('тут просто выставляем в модель наше новое значение,
-            #  которое было введено вручную')
-            self._data[index.row()][index.column()] = float(value)
-            # print('--------------------------------------6')
-            # print(self._data)
-            # Тут в модель посылаем сигнал, что у нас данные были изменены
+            row_copy[index.column()] = number
+            self._data[index.row()][index.column()] = number
             self.dataChanged.emit(index, index, [Qt.DisplayRole, Qt.EditRole])
-            # print('Показываем словарь с измененными значениями перед\
-            #  добавлением туда нового')
-            # print('--------------------------------------7')
-            # print(self._changed_rows)
-            # print('Добавляем в словарь с измененными значениями')
             difference = row_copy.copy()
             startRow = self._startEditRow
             for i in range(startRow, len(row_copy)):
                 if self._basic_rows[index.row()][i] is None:
                     difference[i] = None
                     continue
-                if self._basic_rows[index.row()][i] == '':
+                if self._basic_rows[index.row()][i] == "":
                     difference[i] = None
                     continue
                 basic = float(self._basic_rows[index.row()][i])
                 copy = float(row_copy[i])
                 difference[i] = basic - copy
             self._changed_rows[index.row()] = difference
-            # print('--------------------------------------8')
-            # print(self._changed_rows)
             return True
         return False
 
@@ -166,10 +155,7 @@ class MyModel(BasicTableModel):
         """func."""
         self.beginInsertRows(QModelIndex(), position, position + rows - 1)
         if values is None:
-            values = [
-                [
-                    '' for i in range(self.columnCount(None))
-                    ] for j in range(rows)]
+            values = [["" for i in range(self.columnCount(None))] for j in range(rows)]
         for value in values:
             self._data.append(value)
         self.endInsertRows()
@@ -178,7 +164,7 @@ class MyModel(BasicTableModel):
     def removeRows(self, position, rows, parent=QModelIndex()):
         """Remove rows from the model."""
         self.beginRemoveRows(parent, position, position + rows - 1)
-        del self._data[position:position+rows]
+        del self._data[position : position + rows]
         self.endRemoveRows()
         return True
 
@@ -197,14 +183,14 @@ class MyModel(BasicTableModel):
         """Add values to the given row."""
         """исправленная версия"""
         if row < self.rowCount():
-            if 'Руководство аспирантом' in self._data[row][self._discipline_row]:
-                aspirant = DH.extract_value_from_brackets(
-                    values[self._discipline_row])
+            if "Руководство аспирантом" in self._data[row][self._discipline_row]:
+                aspirant = DH.extract_value_from_brackets(values[self._discipline_row])
                 old_ver = self._data[row][self._discipline_row]
                 new_col = DH.add_value_to_brackets(aspirant, old_ver)
                 self._data[row][self._discipline_row] = new_col
-                self._data[row][self._discipline_row + 2] = int(
-                    self._data[row][self._discipline_row + 2]) + 1
+                self._data[row][self._discipline_row + 2] = (
+                    int(self._data[row][self._discipline_row + 2]) + 1
+                )
             for i in range(startcol, self.columnCount()):
                 current_value = self._data[row][i]
                 second_value = values[i]
@@ -219,19 +205,19 @@ class MyModel(BasicTableModel):
                     new_value = second_value
                 self._data[row][i] = new_value
                 index = self.createIndex(row, i)
-                self.dataChanged.emit(
-                    index, index, [Qt.DisplayRole, Qt.EditRole])
+                self.dataChanged.emit(index, index, [Qt.DisplayRole, Qt.EditRole])
 
     def get_back_not_selected_edited_cols(self, row, col):
         """func."""
         try:
-            self._changed_rows[row][col] = None
-            self._data[row][col] = self._basic_rows[row][col]
+            original = self._basic_rows[row][col]
+            bucket = self._changed_rows[row]
         except KeyError:
-            print('Ошибка')
+            return
+        bucket[col] = None
+        self._data[row][col] = original
         index = self.createIndex(row, col)
-        self.dataChanged.emit(
-            index, index, [Qt.DisplayRole, Qt.EditRole])
+        self.dataChanged.emit(index, index, [Qt.DisplayRole, Qt.EditRole])
 
     def get_diff(self):
         """func."""
@@ -273,7 +259,7 @@ class MyModel(BasicTableModel):
     def divide_row(self, row, data):
         """func."""
         new_data = []
-        row = self._ids[data[0]]
+        row = self._ids[str(data[0])]
         for i in range(self._startEditRow):
             new_data.append(self._data[row][i])
         for i in range(self._startEditRow, len(data)):
@@ -304,7 +290,7 @@ class MyModel(BasicTableModel):
                 new_data.append(new_val)
             else:
                 new_data.append(old_val)
-        if 'Руководство аспирантом' in new_data[6]:
+        if "Руководство аспирантом" in new_data[6]:
             new_data[6] = DH.remove_value_from_brackets(asp, new_data[6])
         if self.check_for_zeros(new_data):
             self.removeRows(row, 1)
@@ -317,7 +303,7 @@ class MyModel(BasicTableModel):
     def special_divide_row(self, row, rep_data, dict_data, asp=None):
         """func."""
         new_data = []
-        row = self._ids[rep_data[0]]
+        row = self._ids[str(rep_data[0])]
         for i in range(self._startEditRow):
             new_data.append(self._data[row][i])
         for i in range(self._startEditRow, len(rep_data)):
@@ -330,7 +316,7 @@ class MyModel(BasicTableModel):
                 new_data.append(float(old_val) - float(new_val))
             else:
                 new_data.append(old_val)
-        if 'Руководство аспирантом' in new_data[6]:
+        if "Руководство аспирантом" in new_data[6]:
             new_data[6] = DH.remove_value_from_brackets(asp, new_data[6])
         if self.check_for_zeros(new_data):
             self.removeRows(row, 1)
@@ -372,7 +358,7 @@ class MyModel(BasicTableModel):
 
     def addId(self, id):
         """func."""
-        self._ids[id] = len(self._ids)
+        self._ids[str(id)] = len(self._ids)
 
     def getIds(self):
         """func."""
@@ -381,134 +367,6 @@ class MyModel(BasicTableModel):
     def delId(self, id):
         """func."""
         del self._ids[id]
-
-    def getLectionsSum(self):
-        """func."""
-        column = 9
-        sum = 0
-        data = self._data.copy()
-        sum = self.getColumnSum(data, column)
-        print(sum)
-
-    def getLab1Sum(self):
-        """func."""
-        column = 10
-        sum = 0
-        data = self._data.copy()
-        sum = self.getColumnSum(data, column)
-        print(sum)
-
-    def getLab2Sum(self):
-        """func."""
-        column = 11
-        sum = 0
-        data = self._data.copy()
-        sum = self.getColumnSum(data, column)
-        print(sum)
-
-    def getPrak1Sum(self):
-        """func."""
-        column = 12
-        sum = 0
-        data = self._data.copy()
-        sum = self.getColumnSum(data, column)
-        print(sum)
-
-    def getPrak2Sum(self):
-        """func."""
-        column = 13
-        sum = 0
-        data = self._data.copy()
-        sum = self.getColumnSum(data, column)
-        print(sum)
-
-    def getRgr1Sum(self):
-        """func."""
-        column = 14
-        sum = 0
-        data = self._data.copy()
-        sum = self.getColumnSum(data, column)
-        print(sum)
-
-    def getRgr2Sum(self):
-        """func."""
-        column = 15
-        sum = 0
-        data = self._data.copy()
-        sum = self.getColumnSum(data, column)
-        print(sum)
-
-    def getKpr1Sum(self):
-        """func."""
-        column = 16
-        sum = 0
-        data = self._data.copy()
-        sum = self.getColumnSum(data, column)
-        print(sum)
-
-    def getKpr2Sum(self):
-        """func."""
-        column = 17
-        sum = 0
-        data = self._data.copy()
-        sum = self.getColumnSum(data, column)
-        print(sum)
-
-    def getCons1Sum(self):
-        """func."""
-        column = 18
-        sum = 0
-        data = self._data.copy()
-        sum = self.getColumnSum(data, column)
-        print(sum)
-
-    def getCons2Sum(self):
-        """func."""
-        column = 19
-        sum = 0
-        data = self._data.copy()
-        sum = self.getColumnSum(data, column)
-        print(sum)
-
-    def getExam1Sum(self):
-        """func."""
-        column = 20
-        sum = 0
-        data = self._data.copy()
-        sum = self.getColumnSum(data, column)
-        print(sum)
-
-    def getExam2Sum(self):
-        """func."""
-        column = 21
-        sum = 0
-        data = self._data.copy()
-        sum = self.getColumnSum(data, column)
-        print(sum)
-
-    def getZachet1Sum(self):
-        """func."""
-        column = 22
-        sum = 0
-        data = self._data.copy()
-        sum = self.getColumnSum(data, column)
-        print(sum)
-
-    def getZachet2Sum(self):
-        """func."""
-        column = 23
-        sum = 0
-        data = self._data.copy()
-        sum = self.getColumnSum(data, column)
-        print(sum)
-
-    def getDopsum(self):
-        """func."""
-        column = 24
-        sum = 0
-        data = self._data.copy()
-        sum = self.getColumnSum(data, column)
-        print(sum)
 
     def getAllColSum(self):
         """func."""
@@ -558,10 +416,20 @@ class KafedraModels(BasicTableModel):
         if role == Qt.TextAlignmentRole:
             return QVariant(Qt.AlignCenter)
 
+    def setData(self, index, value, role):
+        """func."""
+        if role != Qt.EditRole or not index.isValid():
+            return False
+        row = list(self._data[index.row()])
+        row[index.column()] = value
+        self._data[index.row()] = row
+        self.dataChanged.emit(index, index, [Qt.DisplayRole, Qt.EditRole])
+        return True
+
     def removeRows(self, position, rows, parent=QModelIndex()):
         """Remove rows from the model."""
         self.beginRemoveRows(parent, position, position + rows - 1)
-        del self._data[position:position+rows]
+        del self._data[position : position + rows]
         self.endRemoveRows()
         return True
 
@@ -602,8 +470,6 @@ class MyListModel(QAbstractListModel):
             row = index.row()
             value = self.__data[row]
             return value
-        if role == Qt.ToolTipRole:
-            return 'Нюхая бебру'
 
     def flags(self, index):
         """func."""

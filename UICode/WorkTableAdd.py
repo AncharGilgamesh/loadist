@@ -1,15 +1,17 @@
 """code."""
 
+import os
+
+from PyQt5 import QtGui
 from PyQt5.QtCore import pyqtSignal
 from PyQt5.QtWidgets import QDialog, QMessageBox
 from PyQt5.uic import loadUi
-from PyQt5 import QtGui
-import Models.SqlHandler as SQH
-import os
 
+import Models.DataHandler as DH
+import Models.SqlHandler as SQH
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-UI_PATH = os.path.join(BASE_DIR, '..', 'UI', 'addWorkTable.ui')
+UI_PATH = os.path.join(BASE_DIR, "..", "UI", "addWorkTable.ui")
 
 
 class CreateWorkTable(QDialog):
@@ -28,60 +30,86 @@ class CreateWorkTable(QDialog):
         self.cancelButton.clicked.connect(lambda: self.close())
         self.confirmButton.clicked.connect(self.on_ok)
         self._teachers_model = None
-        self.setWindowIcon(QtGui.QIcon(
-            QtGui.QPixmap(':/icons/Images/other.png')))
+        self.setWindowIcon(QtGui.QIcon(QtGui.QPixmap(":/icons/Images/other.png")))
 
     def get_stvkaDljnst(self):
         """func."""
         current_index = self.fioComboBox.currentIndex()
         current_id = self._teachers_model.get_id(current_index)
-        dljnst = SQH.get_col_where(
-            'doljnost', 'teacher_id', str(current_id), 'teachers')[0]
-        stvkaDljnst = SQH.get_col_where(
-            'stavka', 'doljnost', dljnst, 'doljnosti')[0]
-        return stvkaDljnst, current_id
+        position = SQH.get_col_where(
+            "doljnost", "teacher_id", str(current_id), "teachers"
+        )
+        if not position or position[0] in (None, ""):
+            return None
+        rate = SQH.get_col_where("stavka", "doljnost", position[0], "doljnosti")
+        if not rate or rate[0] in (None, ""):
+            return None
+        return rate[0], current_id
 
     def on_ok(self):
         """func."""
-        list_to_send = []
         total = 0
         fio = self.fioComboBox.currentText()
         mainstavk = self.stavkaLineEdit.text()
         pochasOsn = self.pchsPlusLineEdit.text()
         sovmest = self.sovmestLineEdit.text()
         pochas = self.pochLineEdit.text()
-        stvkaDljnst, prepod_id = self.get_stvkaDljnst()
+        found = self.get_stvkaDljnst()
+        if found is None:
+            QMessageBox.warning(self, "Ошибка", "У должности нет ставки")
+            return
+        stvkaDljnst, prepod_id = found
         if self.usualRadioButton.isChecked():
-            type = 'Обычная'
-            if not mainstavk:
-                QMessageBox.warning(self, 'Ошибка', 'Введите ставку')
+            table_type = "Обычная"
+            rate, error = self._required_number(mainstavk, "Введите ставку")
+            if error:
+                QMessageBox.warning(self, "Ошибка", error)
                 return
-            total += float(mainstavk) * float(stvkaDljnst)
-            if pochasOsn:
-                total += float(pochasOsn)
-            if sovmest:
-                total += float(sovmest) * float(stvkaDljnst)
+            total += rate * float(stvkaDljnst)
+            extra, error = self._optional_number(pochasOsn)
+            if error:
+                QMessageBox.warning(self, "Ошибка", error)
+                return
+            total += extra
+            extra, error = self._optional_number(sovmest)
+            if error:
+                QMessageBox.warning(self, "Ошибка", error)
+                return
+            total += extra * float(stvkaDljnst)
         elif self.pochasRadioButton.isChecked():
-            type = 'Почасовая'
-            if not pochas:
-                QMessageBox.warning(self, 'Ошибка', 'Введите часы')
+            table_type = "Почасовая"
+            hours, error = self._required_number(pochas, "Введите часы")
+            if error:
+                QMessageBox.warning(self, "Ошибка", error)
                 return
-            total = float(pochas)
+            total = hours
         else:
-            QMessageBox.warning(self, 'Ошибка', 'Выберите тип таблицы')
+            QMessageBox.warning(self, "Ошибка", "Выберите тип таблицы")
             return
         list_to_send = [
             fio,
             prepod_id,
-            type,
+            table_type,
             mainstavk,
             pochas,
             pochasOsn,
             sovmest,
-            total
+            total,
         ]
         self.data_signal.emit(list_to_send)
         self.accept()
+
+    def _required_number(self, text, empty_message):
+        """func."""
+        if not str(text).strip():
+            return None, empty_message
+        return DH.parse_non_negative_number(text)
+
+    def _optional_number(self, text):
+        """func."""
+        if not str(text).strip():
+            return 0, None
+        return DH.parse_non_negative_number(text)
 
     def pchsPlusTracking(self):
         """func."""
@@ -128,9 +156,9 @@ class CreateWorkTable(QDialog):
         """func."""
         self.fioComboBox.setCurrentText(data[0])
         self.fioComboBox.setEditable(False)
-        if data[2] == 'Обычная':
+        if data[2] == "Обычная":
             self.usualRadioButton.setChecked(True)
-        if data[2] == 'Почасовая':
+        if data[2] == "Почасовая":
             self.pochasRadioButton.setChecked(True)
         self.stavkaLineEdit.setText(str(data[3]))
         self.pochLineEdit.setText(str(data[4]))
