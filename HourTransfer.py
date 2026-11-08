@@ -1,12 +1,20 @@
 """Перенос часов между общей нагрузкой и таблицей преподавателя."""
 
-from PyQt5.QtWidgets import QMessageBox
+from PyQt5.QtWidgets import QDialog, QMessageBox
 
 import Models.DataHandler as DH
+from UICode.NameSelectionDialog import NameSelectionDialog
 
 
 class HourTransfer:
     """Перенос выбранных ячеек преподавателю и обратно."""
+
+    def _choose_aspirant(self, names):
+        """Спрашивает имя аспиранта. None, если окно закрыли без выбора."""
+        dialog = NameSelectionDialog(names)
+        if dialog.exec_() != QDialog.Accepted:
+            return None
+        return dialog.get_selected_item()
 
     def row_inserting(self):
         """Перенос часов выбранному преподавателю."""
@@ -14,7 +22,9 @@ class HourTransfer:
         if not selected_indexes:
             QMessageBox.warning(self, "Ошибка", "Выберите ячейки")
             return
-        row_data = DH.collect_selected_rows(self.model1, selected_indexes)
+        row_data = DH.collect_selected_rows(
+            self.model1, selected_indexes, self._choose_aspirant
+        )
         if row_data is None:
             return
         difference = self.check_hours(row_data)
@@ -60,7 +70,9 @@ class HourTransfer:
             QMessageBox.warning(self, "Ошибка", "Выберите ячейки")
             return
         model = self._rtblModels[self.current_work_table_id()]
-        row_data = DH.collect_selected_rows(model, selected_indexes)
+        row_data = DH.collect_selected_rows(
+            model, selected_indexes, self._choose_aspirant
+        )
         if row_data is None:
             return
         DH.move_rows(model, self.model1, selected_indexes, row_data)

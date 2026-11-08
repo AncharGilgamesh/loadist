@@ -2,11 +2,8 @@
 
 import re
 
-from PyQt5.QtWidgets import QDialog
-
 import Models.SqlHandler as SQH
 from Data.Teacher import Teacher
-from UICode.NameSelectionDialog import NameSelectionDialog
 
 
 def parse_non_negative_number(text, integer=False):
@@ -346,7 +343,7 @@ def add_value_to_brackets(additional_value, text):
     return updated_text
 
 
-def collect_selected_rows(model, selected_indexes):
+def collect_selected_rows(model, selected_indexes, choose_aspirant):
     """Собирает переносимые строки. None, если выбор аспиранта отменён."""
     row_data = {}
     for index in selected_indexes:
@@ -359,12 +356,10 @@ def collect_selected_rows(model, selected_indexes):
         for col in range(9):
             current_row.append(str(model.index(row, col).data()))
         discipline = model.index(row, 6).data()
-        if discipline and "Руководство аспирантом" in discipline:
-            names = extract_names(discipline)
-            dialog = NameSelectionDialog(names)
-            if dialog.exec_() != QDialog.Accepted:
+        if discipline and "Руководство аспирантом" in str(discipline):
+            selected_item = choose_aspirant(extract_names(str(discipline)))
+            if not selected_item:
                 return None
-            selected_item = dialog.get_selected_item()
             current_row[6] = "Руководство аспирантом (" + selected_item + ")"
             current_row[8] = int(current_row[8]) - 1
         for col in range(9, model.columnCount()):
