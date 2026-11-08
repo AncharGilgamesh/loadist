@@ -36,11 +36,15 @@ class CreateWorkTable(QDialog):
         """func."""
         current_index = self.fioComboBox.currentIndex()
         current_id = self._teachers_model.get_id(current_index)
-        dljnst = SQH.get_col_where(
-            'doljnost', 'teacher_id', str(current_id), 'teachers')[0]
-        stvkaDljnst = SQH.get_col_where(
-            'stavka', 'doljnost', dljnst, 'doljnosti')[0]
-        return stvkaDljnst, current_id
+        position = SQH.get_col_where(
+            'doljnost', 'teacher_id', str(current_id), 'teachers')
+        if not position or position[0] in (None, ""):
+            return None
+        rate = SQH.get_col_where(
+            'stavka', 'doljnost', position[0], 'doljnosti')
+        if not rate or rate[0] in (None, ""):
+            return None
+        return rate[0], current_id
 
     def on_ok(self):
         """func."""
@@ -50,7 +54,11 @@ class CreateWorkTable(QDialog):
         pochasOsn = self.pchsPlusLineEdit.text()
         sovmest = self.sovmestLineEdit.text()
         pochas = self.pochLineEdit.text()
-        stvkaDljnst, prepod_id = self.get_stvkaDljnst()
+        found = self.get_stvkaDljnst()
+        if found is None:
+            QMessageBox.warning(self, 'Ошибка', 'У должности нет ставки')
+            return
+        stvkaDljnst, prepod_id = found
         if self.usualRadioButton.isChecked():
             table_type = 'Обычная'
             rate, error = self._required_number(mainstavk, 'Введите ставку')

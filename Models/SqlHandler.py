@@ -9,6 +9,45 @@ DB_DIR = os.path.join(BASE_DIR, '..', 'DB')
 pathDb = os.path.join(DB_DIR, 'nagruzka.db')
 SETTING_DB = os.path.join(DB_DIR, 'settings.db')
 
+TABLES = {
+    "teachers": (
+        "teacher_id", "fio", "zvanie", "stepen",
+        "doljnost", "dipLimit", "curator",
+    ),
+    "workTables": (
+        "tblId", "fio", "teacher_id", "type", "mainstvka",
+        "pochas", "pochasDop", "sovmest", "total",
+    ),
+    "doljnosti": ("doljnost", "stavka"),
+    "kafedraGroups": (
+        "group_id", "groupName", "amount", "curator", "napCode",
+    ),
+    "disciplines": ("dis_id", "nap_code", "discipline"),
+    "napPod": ("nap_code", "nap_name"),
+}
+
+
+def _connect(path):
+    """func."""
+    con = sqlite3.connect(path)
+    con.execute("PRAGMA foreign_keys=ON")
+    return con
+
+
+def _require_table(tablename):
+    """func."""
+    if tablename not in TABLES:
+        raise ValueError("Неизвестная таблица")
+    return tablename
+
+
+def _require_column(tablename, column):
+    """func."""
+    _require_table(tablename)
+    if column not in TABLES[tablename]:
+        raise ValueError("Неизвестный столбец")
+    return column
+
 
 def create_tables():
     """func."""
@@ -21,11 +60,12 @@ def create_tables():
     create_nap_pod_table()
     create_settings_table()
     ensure_default_settings()
+    return migrate_primary_keys()
 
 
 def ensure_default_settings():
     """func."""
-    with sqlite3.connect(SETTING_DB) as con:
+    with _connect(SETTING_DB) as con:
         cur = con.cursor()
         cur.execute("SELECT COUNT(*) FROM settings")
         if cur.fetchone()[0] == 0:
@@ -52,13 +92,14 @@ def ensure_default_settings():
 # Для преддипломки
 def create_work_table():
     """func."""
-    with sqlite3.connect(pathDb) as con:
+    with _connect(pathDb) as con:
         cur = con.cursor()
         query = ("""
         CREATE TABLE IF NOT EXISTS workTables (
-        tblId INTEGER,
+        tblId INTEGER PRIMARY KEY,
         fio TEXT,
-        teacher_id INTEGER,
+        teacher_id INTEGER REFERENCES teachers(teacher_id)
+            DEFERRABLE INITIALLY DEFERRED,
         type TEXT,
         mainstvka REAL,
         pochas REAL,
@@ -73,7 +114,7 @@ def create_work_table():
 
 def create_settings_table():
     """func."""
-    with sqlite3.connect(SETTING_DB) as con:
+    with _connect(SETTING_DB) as con:
         cur = con.cursor()
         query = ("""
         CREATE TABLE IF NOT EXISTS settings (
@@ -95,11 +136,11 @@ def create_settings_table():
 
 def create_teachers_table():
     """func."""
-    with sqlite3.connect(pathDb) as con:
+    with _connect(pathDb) as con:
         cur = con.cursor()
         query = ("""
         CREATE TABLE IF NOT EXISTS teachers (
-        teacher_id INTEGER,
+        teacher_id INTEGER PRIMARY KEY,
         fio TEXT,
         zvanie TEXT,
         stepen TEXT,
@@ -114,7 +155,7 @@ def create_teachers_table():
 
 def create_doljnosti_table():
     """func."""
-    with sqlite3.connect(pathDb) as con:
+    with _connect(pathDb) as con:
         cur = con.cursor()
         cur.execute("""
         CREATE TABLE IF NOT EXISTS doljnosti (
@@ -126,7 +167,7 @@ def create_doljnosti_table():
 
 def create_groups_table():
     """func."""
-    with sqlite3.connect(pathDb) as con:
+    with _connect(pathDb) as con:
         cur = con.cursor()
         cur.execute("""
         CREATE TABLE IF NOT EXISTS kafedraGroups (
@@ -141,7 +182,7 @@ def create_groups_table():
 
 def create_discipline_table():
     """func."""
-    with sqlite3.connect(pathDb) as con:
+    with _connect(pathDb) as con:
         cur = con.cursor()
         query = ("""
         CREATE TABLE IF NOT EXISTS disciplines(
@@ -156,11 +197,11 @@ def create_discipline_table():
 
 def create_nap_pod_table():
     """func."""
-    with sqlite3.connect(pathDb) as con:
+    with _connect(pathDb) as con:
         cur = con.cursor()
         query = ("""
         CREATE TABLE IF NOT EXISTS napPod(
-        nap_code TEXT,
+        nap_code TEXT PRIMARY KEY,
         nap_name TEXT
         )
         """)
@@ -168,9 +209,192 @@ def create_nap_pod_table():
         con.commit()
 
 
+def _column_is_pk(cur, table, column):
+    """func."""
+    for row in cur.execute("PRAGMA table_info(" + table + ")"):
+        if row[1] == column and row[5]:
+            return True
+    return False
+
+
+def _work_table_fk_ready(cur):
+    """func."""
+    row = cur.execute(
+        "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?",
+        ("workTables",),
+    ).fetchone()
+    if row is None or "DEFERRABLE" not in row[0].upper():
+        return False
+    for fk in cur.execute("PRAGMA foreign_key_list(workTables)"):
+        if fk[2] == "teachers" and fk[3] == "teacher_id" and fk[4] == "teacher_id":
+            return True
+    return False
+
+
+def _schema_current(cur):
+    """func."""
+    return (
+        _column_is_pk(cur, "teachers", "teacher_id")
+        and _column_is_pk(cur, "workTables", "tblId")
+        and _column_is_pk(cur, "napPod", "nap_code")
+        and _work_table_fk_ready(cur)
+    )
+
+
+def _duplicate_key_message(cur):
+    """func."""
+    checks = (
+        ("teachers", "teacher_id", "преподавателей"),
+        ("workTables", "tblId", "рабочих таблиц"),
+        ("napPod", "nap_code", "направлений"),
+    )
+    found = []
+    for table, column, label in checks:
+        duplicates = cur.execute(
+            "SELECT COUNT(*) FROM ("
+            "SELECT " + column + " FROM " + table +
+            " GROUP BY " + column + " HAVING COUNT(*) > 1)"
+        ).fetchone()[0]
+        empty = cur.execute(
+            "SELECT COUNT(*) FROM " + table + " WHERE " + column + " IS NULL"
+        ).fetchone()[0]
+        if duplicates or empty:
+            found.append(label)
+    if not found:
+        return None
+    return (
+        "Миграция не выполнена: повторяются или пустые ключи у "
+        + ", ".join(found)
+        + ". Старые таблицы оставлены без изменений."
+    )
+
+
+def _orphan_work_table_message(cur):
+    """func."""
+    orphans = cur.execute(
+        """
+        SELECT COUNT(*) FROM workTables AS work
+        LEFT JOIN teachers AS teacher
+            ON work.teacher_id = teacher.teacher_id
+        WHERE work.teacher_id IS NOT NULL
+            AND teacher.teacher_id IS NULL
+        """
+    ).fetchone()[0]
+    if not orphans:
+        return None
+    return (
+        "Миграция не выполнена: рабочая таблица ссылается "
+        "на преподавателя, которого нет. "
+        "Старые таблицы оставлены без изменений."
+    )
+
+
+def _rebuild_keyed_tables(con):
+    """func."""
+    con.execute(
+        """
+        CREATE TABLE teachers_new (
+        teacher_id INTEGER PRIMARY KEY,
+        fio TEXT,
+        zvanie TEXT,
+        stepen TEXT,
+        doljnost TEXT,
+        dipLimit INTEGER,
+        curator TEXT
+        )
+        """
+    )
+    con.execute(
+        """
+        INSERT INTO teachers_new (
+        teacher_id, fio, zvanie, stepen, doljnost, dipLimit, curator
+        )
+        SELECT teacher_id, fio, zvanie, stepen, doljnost, dipLimit, curator
+        FROM teachers
+        """
+    )
+    con.execute("DROP TABLE teachers")
+    con.execute("ALTER TABLE teachers_new RENAME TO teachers")
+    con.execute(
+        """
+        CREATE TABLE workTables_new (
+        tblId INTEGER PRIMARY KEY,
+        fio TEXT,
+        teacher_id INTEGER REFERENCES teachers(teacher_id)
+            DEFERRABLE INITIALLY DEFERRED,
+        type TEXT,
+        mainstvka REAL,
+        pochas REAL,
+        pochasDop REAL,
+        sovmest REAL,
+        total REAL
+        )
+        """
+    )
+    con.execute(
+        """
+        INSERT INTO workTables_new (
+        tblId, fio, teacher_id, type, mainstvka, pochas, pochasDop, sovmest, total
+        )
+        SELECT tblId, fio, teacher_id, type, mainstvka, pochas,
+               pochasDop, sovmest, total
+        FROM workTables
+        """
+    )
+    con.execute("DROP TABLE workTables")
+    con.execute("ALTER TABLE workTables_new RENAME TO workTables")
+    con.execute(
+        """
+        CREATE TABLE napPod_new (
+        nap_code TEXT PRIMARY KEY,
+        nap_name TEXT
+        )
+        """
+    )
+    con.execute(
+        """
+        INSERT INTO napPod_new (nap_code, nap_name)
+        SELECT nap_code, nap_name FROM napPod
+        """
+    )
+    con.execute("DROP TABLE napPod")
+    con.execute("ALTER TABLE napPod_new RENAME TO napPod")
+
+
+def migrate_primary_keys():
+    """func."""
+    con = sqlite3.connect(pathDb)
+    try:
+        con.isolation_level = None
+        cur = con.cursor()
+        if _schema_current(cur):
+            return None
+        message = _duplicate_key_message(cur)
+        if message is None:
+            message = _orphan_work_table_message(cur)
+        if message:
+            return message
+        con.execute("PRAGMA foreign_keys=OFF")
+        con.execute("BEGIN")
+        _rebuild_keyed_tables(con)
+        con.execute("COMMIT")
+    except sqlite3.Error:
+        try:
+            con.execute("ROLLBACK")
+        except sqlite3.Error:
+            pass
+        return (
+            "Миграция не выполнена: не удалось обновить ключи таблиц. "
+            "Старые данные оставлены без изменений."
+        )
+    finally:
+        con.close()
+    return None
+
+
 def insert_into_setting_table(list_to_add):
     """func."""
-    with sqlite3.connect(SETTING_DB) as con:
+    with _connect(SETTING_DB) as con:
         cur = con.cursor()
         cur.execute("DELETE FROM settings")
         cur.execute("""
@@ -191,7 +415,8 @@ def insert_into_setting_table(list_to_add):
 
 def insert_into_teachers_table(list_to_add):
     """func."""
-    with sqlite3.connect(pathDb) as con:
+    con = _connect(pathDb)
+    try:
         cur = con.cursor()
         cur.execute("DELETE FROM teachers")
         cur.executemany("""
@@ -205,11 +430,17 @@ def insert_into_teachers_table(list_to_add):
         curator
         ) VALUES(?, ?, ?, ?, ?, ?, ?)
         """, list_to_add)
+        con.commit()
+    except Exception:
+        con.rollback()
+        raise
+    finally:
+        con.close()
 
 
 def insert_into_doljnost_table(list_to_add):
     """func."""
-    with sqlite3.connect(pathDb) as con:
+    with _connect(pathDb) as con:
         cur = con.cursor()
         cur.execute("DELETE FROM doljnosti")
         cur.executemany("""
@@ -221,7 +452,7 @@ def insert_into_doljnost_table(list_to_add):
 
 def insert_into_groups_table(list_to_add):
     """func."""
-    with sqlite3.connect(pathDb) as con:
+    with _connect(pathDb) as con:
         cur = con.cursor()
         cur.execute("DELETE FROM kafedraGroups")
         cur.executemany(
@@ -232,7 +463,7 @@ def insert_into_groups_table(list_to_add):
 
 def insert_into_napPod_table(list_to_add):
     """func."""
-    with sqlite3.connect(pathDb) as con:
+    with _connect(pathDb) as con:
         cur = con.cursor()
         cur.execute("DELETE FROM napPod")
         cur.executemany(
@@ -243,18 +474,52 @@ def insert_into_napPod_table(list_to_add):
 
 def insert_into_work_table(list_to_add):
     """func."""
-    with sqlite3.connect(pathDb) as con:
+    con = _connect(pathDb)
+    try:
         cur = con.cursor()
         cur.execute("DELETE FROM workTables")
         cur.executemany(
             "INSERT INTO workTables VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)",
             list_to_add,
         )
+        con.commit()
+    except Exception:
+        con.rollback()
+        raise
+    finally:
+        con.close()
+
+
+def replace_teachers_and_work_tables(teachers, work_tables):
+    """Сначала снимает рабочие таблицы, затем записывает оба списка."""
+    con = _connect(pathDb)
+    try:
+        cur = con.cursor()
+        cur.execute("DELETE FROM workTables")
+        cur.execute("DELETE FROM teachers")
+        cur.executemany(
+            """
+            INSERT INTO teachers (
+            teacher_id, fio, zvanie, stepen, doljnost, dipLimit, curator
+            ) VALUES(?, ?, ?, ?, ?, ?, ?)
+            """,
+            teachers,
+        )
+        cur.executemany(
+            "INSERT INTO workTables VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            work_tables,
+        )
+        con.commit()
+    except Exception:
+        con.rollback()
+        raise
+    finally:
+        con.close()
 
 
 def insert_into_disciplines_table(list_to_add):
     """func."""
-    with sqlite3.connect(pathDb) as con:
+    with _connect(pathDb) as con:
         cur = con.cursor()
         cur.execute("DELETE FROM disciplines")
         cur.executemany(
@@ -265,73 +530,74 @@ def insert_into_disciplines_table(list_to_add):
 
 def select_all_from_table(tablename):
     """func."""
-    with sqlite3.connect(pathDb) as con:
+    table = _require_table(tablename)
+    with _connect(pathDb) as con:
         cur = con.cursor()
-        query = "SELECT * FROM " + tablename
-        cur.execute(query)
+        cur.execute("SELECT * FROM " + table)
         data = cur.fetchall()
     return data
 
 
 def select_settings():
     """func."""
-    with sqlite3.connect(SETTING_DB) as con:
+    with _connect(SETTING_DB) as con:
         cur = con.cursor()
-        query = "SELECT * FROM " + 'settings'
-        cur.execute(query)
+        cur.execute("SELECT * FROM settings")
         data = cur.fetchall()
     return data
 
 
 def drop_table_by_name(tablename):
     """func."""
-    with sqlite3.connect(pathDb) as con:
+    table = _require_table(tablename)
+    with _connect(pathDb) as con:
         cur = con.cursor()
-        query = ("DROP TABLE " + tablename)
-        cur.execute(query)
+        cur.execute("DROP TABLE " + table)
         con.commit()
 
 
 def drop_settings_table():
     """func."""
-    with sqlite3.connect(SETTING_DB) as con:
+    with _connect(SETTING_DB) as con:
         cur = con.cursor()
-        query = ("DROP TABLE " + 'settings')
-        cur.execute(query)
+        cur.execute("DROP TABLE settings")
         con.commit()
 
 
 def get_col_where(col_to_get, col_condition, condition, tablename):
     """func."""
     """функция для получения ставки из таблицы должностей"""
-    with sqlite3.connect(pathDb) as con:
+    table = _require_table(tablename)
+    column = _require_column(table, col_to_get)
+    condition_column = _require_column(table, col_condition)
+    with _connect(pathDb) as con:
         cur = con.cursor()
-        # query = (
-        #     "SELECT " + col_to_get + " FROM " + tablename + """
-        #       WHERE """ + col_condition + " = " + str(condition))
-        query = (
-            "SELECT " + col_to_get + " FROM " + tablename + """
-              WHERE """ + col_condition + " LIKE '" + condition + "'")
-        cur.execute(query)
+        cur.execute(
+            "SELECT " + column + " FROM " + table +
+            " WHERE " + condition_column + " = ?",
+            (condition,),
+        )
         data = cur.fetchone()
     return data
 
 
 def get_row_where(col_condition, condition, tablename):
     """func."""
-    with sqlite3.connect(pathDb) as con:
+    table = _require_table(tablename)
+    condition_column = _require_column(table, col_condition)
+    with _connect(pathDb) as con:
         cur = con.cursor()
-        query = (
-            "SELECT * FROM " + tablename + """
-              WHERE """ + col_condition + " LIKE '" + condition + "'")
-        cur.execute(query)
+        cur.execute(
+            "SELECT * FROM " + table + " WHERE " + condition_column + " = ?",
+            (condition,),
+        )
         data = cur.fetchone()
     return data
 
 
 def update_teachers(data):
     """func."""
-    with sqlite3.connect(pathDb) as con:
+    with _connect(pathDb) as con:
         cur = con.cursor()
         query = ("""
         UPDATE teachers
@@ -342,15 +608,15 @@ def update_teachers(data):
             doljnost = ?,
             dipLimit = ?,
             curator = ?
-        WHERE teacher_id = {}
-        """.format(data[0]))
-        cur.execute(query, data)
+        WHERE teacher_id = ?
+        """)
+        cur.execute(query, list(data) + [data[0]])
         con.commit()
 
 
 def update_work_table(data):
     """func."""
-    with sqlite3.connect(pathDb) as con:
+    with _connect(pathDb) as con:
         cur = con.cursor()
         query = ("""
         UPDATE workTables
@@ -363,21 +629,20 @@ def update_work_table(data):
             pochasDop = ?,
             sovmest = ?,
             total = ?
-        WHERE tblId = {}
-        """.format(data[0]))
-        cur.execute(query, data)
+        WHERE tblId = ?
+        """)
+        cur.execute(query, list(data) + [data[0]])
         con.commit()
 
 
 def remove_work_table_where_teacher(id):
     """func."""
-    with sqlite3.connect(pathDb) as con:
+    with _connect(pathDb) as con:
         cur = con.cursor()
-        query = ("""
-        DELETE FROM workTables
-        WHERE teacher_id LIKE
-        """ + str(id))
-        cur.execute(query)
+        cur.execute(
+            "DELETE FROM workTables WHERE teacher_id = ?",
+            (id,),
+        )
         con.commit()
 
 

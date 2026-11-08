@@ -211,7 +211,12 @@ def set_prepods_stats(rtbl_model_dict, stats_model, labels):
 def get_prepod_info(tbl_id):
     """func."""
     tchr_work = SQH.get_row_where('tblId', str(tbl_id), 'workTables')
-    tchr_info = SQH.get_row_where('teacher_id', str(tchr_work[2]), 'teachers')
+    if tchr_work is None:
+        raise ValueError("Не найдена рабочая таблица преподавателя")
+    tchr_info = SQH.get_row_where(
+        'teacher_id', str(tchr_work[2]), 'teachers')
+    if tchr_info is None:
+        raise ValueError("Не найден преподаватель рабочей таблицы")
     name = tchr_info[1]
     zvanie = tchr_info[2]
     stepen = tchr_info[3]
@@ -221,8 +226,9 @@ def get_prepod_info(tbl_id):
     pochas_v_osn = tchr_work[6]
     sovmestitelstvo = tchr_work[7]
     # total = tchr_work[8]
-    stvkaDljnst = SQH.get_col_where(
-            'stavka', 'doljnost', doljnost, 'doljnosti')[0]
+    rate_row = SQH.get_col_where(
+        'stavka', 'doljnost', doljnost, 'doljnosti')
+    stvkaDljnst = None if rate_row is None else rate_row[0]
     list_to_send = [
         name, zvanie, stepen, doljnost, stavka, pochas, pochas_v_osn,
         sovmestitelstvo, stvkaDljnst

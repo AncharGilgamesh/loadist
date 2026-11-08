@@ -21,6 +21,7 @@ from Models.Models import MyModel, KafedraModels, MyListModel
 from PyQt5.QtCore import QFile, QTextStream, QPersistentModelIndex
 import Models.SqlHandler as SQH
 import Models.DataHandler as DH
+import sqlite3
 import Resources.breeze_resources
 import Resources.res_images  # noqa: F401  регистрация иконок Qt
 import os
@@ -54,7 +55,9 @@ class MainWindow(QMainWindow):
         self._work_tbl_model = None
         self._stat_model = None
         self._data_loaded = False
-        SQH.create_tables()
+        migration_error = SQH.create_tables()
+        if migration_error:
+            QMessageBox.warning(self, "Ошибка", migration_error)
         self.update_teacher_table()
         self.updateKafedraGroups()
         self.update_kafedra_doljnosti()
@@ -620,10 +623,33 @@ class MainWindow(QMainWindow):
 
     def save_teacher(self):
         """func."""
-        data = self._teacher_tbl_model.get_data()
-        SQH.insert_into_teachers_table(data)
-        self.update_teacher_names()
         self.check_for_del_ids()
+        try:
+            SQH.replace_teachers_and_work_tables(
+                self._teacher_tbl_model.get_data(),
+                self._work_tbl_model.get_data(),
+            )
+        except sqlite3.IntegrityError:
+            QMessageBox.warning(
+                self,
+                "Ошибка",
+                "Не удалось сохранить преподавателей. "
+                "Проверьте, что их номера не повторяются "
+                "и что рабочие таблицы ссылаются на них.",
+            )
+            self.update_teacher_table()
+            self.update_teacher_names()
+            self.update_work_table()
+            self.update_prepods_dict()
+            if self._data_loaded:
+                self.update_right_models(self._header)
+            self.updatePrepodsComboBox()
+            return
+        self.update_teacher_names()
+        self.update_prepods_dict()
+        if self._data_loaded:
+            self.update_right_models(self._header)
+        self.updatePrepodsComboBox()
 
     def update_teacher_names(self):
         """func."""
@@ -698,11 +724,21 @@ class MainWindow(QMainWindow):
     def save_work_table(self):
         """func."""
         data = self._work_tbl_model.get_data()
-        SQH.insert_into_work_table(data)
+        try:
+            SQH.insert_into_work_table(data)
+        except sqlite3.IntegrityError:
+            QMessageBox.warning(
+                self,
+                "Ошибка",
+                "Не удалось сохранить рабочие таблицы. "
+                "Проверьте номера таблиц и наличие преподавателя.",
+            )
+            return False
         self.update_prepods_dict()
         if self._data_loaded:
             self.update_right_models(self._header)
         self.updatePrepodsComboBox()
+        return True
 
     def open_edit_work_table(self):
         """func."""
@@ -735,7 +771,6 @@ class MainWindow(QMainWindow):
                 rows_to_remove.append(row_index)
         for row_index in reversed(rows_to_remove):
             self._work_tbl_model.removeRow(row_index)
-        self.save_work_table()
 
     # Дисциплины
     def open_add_discipline(self):
