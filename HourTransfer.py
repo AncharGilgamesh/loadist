@@ -1,0 +1,67 @@
+"""Перенос часов между общей нагрузкой и таблицей преподавателя."""
+
+from PyQt5.QtWidgets import QMessageBox
+
+import Models.DataHandler as DH
+
+
+class HourTransfer:
+    """Перенос выбранных ячеек преподавателю и обратно."""
+
+    def row_inserting(self):
+        """Перенос часов выбранному преподавателю."""
+        selected_indexes = self.leftTableView.selectedIndexes()
+        if not selected_indexes:
+            QMessageBox.warning(self, "Ошибка", "Выберите ячейки")
+            return
+        row_data = DH.collect_selected_rows(self.model1, selected_indexes)
+        if row_data is None:
+            return
+        difference = self.check_hours(row_data)
+        if difference < 0:
+            self.get_back_basic()
+            self.model1.clearChangesDict()
+            self.model1.clearBasicDict()
+            self.model1.clear_edited_dict()
+            QMessageBox.warning(
+                self, "Ошибка", "Часы превышены на " + str(abs(difference))
+            )
+            return
+        tbl_id = self.current_work_table_id()
+        DH.move_rows(
+            self.model1,
+            self._rtblModels[tbl_id],
+            selected_indexes,
+            row_data,
+        )
+        self.leftTableView.reset()
+
+    def check_hours(self, row_data):
+        """func."""
+        tbl_id = self.current_work_table_id()
+        transfer_sum = DH.sum_lists(row_data)
+        table_sum = sum(self._rtblModels[tbl_id].getAllColSum())
+        table_limit = self._prepods[tbl_id].getTotalTime()
+        difference = table_limit - transfer_sum - table_sum
+        return difference
+
+    def get_back_basic(self):
+        """func."""
+        basic_data = self.model1.get_basic_rows()
+        for k, v in basic_data.items():
+            self.model1.removeRows(int(k), 1)
+            self.model1.insertRow(int(k), v)
+        self.model1.updateIds()
+
+    def row_outserting(self):
+        """Возврат часов в общую нагрузку."""
+        selected_indexes = self.rightTableView.selectedIndexes()
+        if not selected_indexes:
+            QMessageBox.warning(self, "Ошибка", "Выберите ячейки")
+            return
+        model = self._rtblModels[self.current_work_table_id()]
+        row_data = DH.collect_selected_rows(model, selected_indexes)
+        if row_data is None:
+            return
+        DH.move_rows(model, self.model1, selected_indexes, row_data)
+        self.rightTableView.reset()

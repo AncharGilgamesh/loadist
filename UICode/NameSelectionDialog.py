@@ -1,8 +1,7 @@
-"""class."""
+"""Диалог выбора имени аспиранта."""
 
-from PyQt5.QtWidgets import QDialog, QVBoxLayout, QRadioButton,\
-      QPushButton, QLabel
 from PyQt5 import QtGui
+from PyQt5.QtWidgets import QDialog, QLabel, QPushButton, QRadioButton, QVBoxLayout
 
 
 class NameSelectionDialog(QDialog):
@@ -12,7 +11,7 @@ class NameSelectionDialog(QDialog):
         """func."""
         super().__init__()
         self.selected_item = None
-        self.setWindowTitle("List Dialog")
+        self.setWindowTitle("Выбор аспиранта")
         layout = QVBoxLayout()
         label = QLabel("Выберите аспиранта: ")
         label.setStyleSheet("font-size: 18px;")
@@ -24,13 +23,12 @@ class NameSelectionDialog(QDialog):
             button.toggled.connect(self.on_button_toggled)
             layout.addWidget(button)
             self.buttons.append(button)
-        ok_button = QPushButton("OK")
+        ok_button = QPushButton("ОК")
         ok_button.setStyleSheet("font-size: 16px;")
         ok_button.clicked.connect(self.accept)
         layout.addWidget(ok_button)
         self.setLayout(layout)
-        self.setWindowIcon(QtGui.QIcon(
-            QtGui.QPixmap(':/icons/Images/other.png')))
+        self.setWindowIcon(QtGui.QIcon(QtGui.QPixmap(":/icons/Images/other.png")))
 
     def on_button_toggled(self):
         """func."""

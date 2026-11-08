@@ -1,8 +1,14 @@
-"""Models."""
+"""Таблицы Qt для нагрузки и справочников кафедры."""
 
-from PyQt5.QtCore import QAbstractTableModel, Qt, QModelIndex, QVariant,\
-      QAbstractListModel
+from PyQt5.QtCore import (
+    QAbstractListModel,
+    QAbstractTableModel,
+    QModelIndex,
+    Qt,
+    QVariant,
+)
 from PyQt5.QtWidgets import QMessageBox
+
 import Models.DataHandler as DH
 
 
@@ -34,7 +40,7 @@ class BasicTableModel(QAbstractTableModel):
                 if section < len(self._header):
                     return self._header[section]
                 else:
-                    return 'Проверка'
+                    return "Проверка"
 
     def get_data(self):
         """func."""
@@ -52,7 +58,7 @@ class MyModel(BasicTableModel):
         """func."""
         super(MyModel, self).__init__(data, header)
         # self._data = data
-        self._header = ['id'] + header
+        self._header = ["id"] + header
         # Начальная вариация строки
         self._basic_rows = {}
         # Разница между начальной вариацей строки и конечной
@@ -76,9 +82,9 @@ class MyModel(BasicTableModel):
         if role == Qt.DisplayRole:
             value = self._data[index.row()][index.column()]
             if value is None:
-                return ''
+                return ""
             if value == 0 and index.column() > 0:
-                return ''
+                return ""
             if isinstance(value, float) and value % 1 == 0:
                 value = int(value)
             return value
@@ -98,7 +104,7 @@ class MyModel(BasicTableModel):
         column = index.column()
         if column >= self._startEditRow:
             value = self.data(index, Qt.DisplayRole)
-            if value is None or value == '':
+            if value is None or value == "":
                 return Qt.ItemIsEnabled
             else:
                 return Qt.ItemIsEnabled | Qt.ItemIsSelectable | Qt.ItemIsEditable
@@ -135,7 +141,7 @@ class MyModel(BasicTableModel):
                 if self._basic_rows[index.row()][i] is None:
                     difference[i] = None
                     continue
-                if self._basic_rows[index.row()][i] == '':
+                if self._basic_rows[index.row()][i] == "":
                     difference[i] = None
                     continue
                 basic = float(self._basic_rows[index.row()][i])
@@ -149,10 +155,7 @@ class MyModel(BasicTableModel):
         """func."""
         self.beginInsertRows(QModelIndex(), position, position + rows - 1)
         if values is None:
-            values = [
-                [
-                    '' for i in range(self.columnCount(None))
-                    ] for j in range(rows)]
+            values = [["" for i in range(self.columnCount(None))] for j in range(rows)]
         for value in values:
             self._data.append(value)
         self.endInsertRows()
@@ -161,7 +164,7 @@ class MyModel(BasicTableModel):
     def removeRows(self, position, rows, parent=QModelIndex()):
         """Remove rows from the model."""
         self.beginRemoveRows(parent, position, position + rows - 1)
-        del self._data[position:position+rows]
+        del self._data[position : position + rows]
         self.endRemoveRows()
         return True
 
@@ -180,14 +183,14 @@ class MyModel(BasicTableModel):
         """Add values to the given row."""
         """исправленная версия"""
         if row < self.rowCount():
-            if 'Руководство аспирантом' in self._data[row][self._discipline_row]:
-                aspirant = DH.extract_value_from_brackets(
-                    values[self._discipline_row])
+            if "Руководство аспирантом" in self._data[row][self._discipline_row]:
+                aspirant = DH.extract_value_from_brackets(values[self._discipline_row])
                 old_ver = self._data[row][self._discipline_row]
                 new_col = DH.add_value_to_brackets(aspirant, old_ver)
                 self._data[row][self._discipline_row] = new_col
-                self._data[row][self._discipline_row + 2] = int(
-                    self._data[row][self._discipline_row + 2]) + 1
+                self._data[row][self._discipline_row + 2] = (
+                    int(self._data[row][self._discipline_row + 2]) + 1
+                )
             for i in range(startcol, self.columnCount()):
                 current_value = self._data[row][i]
                 second_value = values[i]
@@ -202,8 +205,7 @@ class MyModel(BasicTableModel):
                     new_value = second_value
                 self._data[row][i] = new_value
                 index = self.createIndex(row, i)
-                self.dataChanged.emit(
-                    index, index, [Qt.DisplayRole, Qt.EditRole])
+                self.dataChanged.emit(index, index, [Qt.DisplayRole, Qt.EditRole])
 
     def get_back_not_selected_edited_cols(self, row, col):
         """func."""
@@ -211,10 +213,9 @@ class MyModel(BasicTableModel):
             self._changed_rows[row][col] = None
             self._data[row][col] = self._basic_rows[row][col]
         except KeyError:
-            print('Ошибка')
+            print("Ошибка")
         index = self.createIndex(row, col)
-        self.dataChanged.emit(
-            index, index, [Qt.DisplayRole, Qt.EditRole])
+        self.dataChanged.emit(index, index, [Qt.DisplayRole, Qt.EditRole])
 
     def get_diff(self):
         """func."""
@@ -287,7 +288,7 @@ class MyModel(BasicTableModel):
                 new_data.append(new_val)
             else:
                 new_data.append(old_val)
-        if 'Руководство аспирантом' in new_data[6]:
+        if "Руководство аспирантом" in new_data[6]:
             new_data[6] = DH.remove_value_from_brackets(asp, new_data[6])
         if self.check_for_zeros(new_data):
             self.removeRows(row, 1)
@@ -313,7 +314,7 @@ class MyModel(BasicTableModel):
                 new_data.append(float(old_val) - float(new_val))
             else:
                 new_data.append(old_val)
-        if 'Руководство аспирантом' in new_data[6]:
+        if "Руководство аспирантом" in new_data[6]:
             new_data[6] = DH.remove_value_from_brackets(asp, new_data[6])
         if self.check_for_zeros(new_data):
             self.removeRows(row, 1)
@@ -426,7 +427,7 @@ class KafedraModels(BasicTableModel):
     def removeRows(self, position, rows, parent=QModelIndex()):
         """Remove rows from the model."""
         self.beginRemoveRows(parent, position, position + rows - 1)
-        del self._data[position:position+rows]
+        del self._data[position : position + rows]
         self.endRemoveRows()
         return True
 

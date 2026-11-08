@@ -1,14 +1,14 @@
-"""code."""
+"""Диалог добавления и правки преподавателя."""
 
+import os
+
+from PyQt5 import QtGui
 from PyQt5.QtCore import pyqtSignal
 from PyQt5.QtWidgets import QDialog, QMessageBox
 from PyQt5.uic import loadUi
-from PyQt5 import QtGui
-import os
-
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-UI_PATH = os.path.join(BASE_DIR, '..', 'UI', 'prepodDialogNew.ui')
+UI_PATH = os.path.join(BASE_DIR, "..", "UI", "prepodDialogNew.ui")
 
 
 class PrepodAdd(QDialog):
@@ -25,8 +25,7 @@ class PrepodAdd(QDialog):
         self.curatorCheckBox.toggled.connect(self.curatorstvo_tracking)
         self.dipLimCheckBox.toggled.connect(self.dip_limit_tracking)
         self.addGroupButton.clicked.connect(self.add_group_cur)
-        self.setWindowIcon(QtGui.QIcon(
-            QtGui.QPixmap(':/icons/Images/other.png')))
+        self.setWindowIcon(QtGui.QIcon(QtGui.QPixmap(":/icons/Images/other.png")))
 
     def curatorstvo_tracking(self):
         """func."""
@@ -50,23 +49,13 @@ class PrepodAdd(QDialog):
         doljnost = self.doljnostComboBox.currentText()
         dipLimit = self.dipLimLineEdit.text()
         curator = self.curatorLineEdit.text()
-        list_to_send = [
-            fio,
-            zvanie,
-            stepen,
-            doljnost,
-            dipLimit,
-            curator
-        ]
+        list_to_send = [fio, zvanie, stepen, doljnost, dipLimit, curator]
         if not fio:
-            QMessageBox.warning(self, 'Ошибка', 'Введите ФИО')
+            QMessageBox.warning(self, "Ошибка", "Введите ФИО")
             return
         words = fio.strip().split()
         if len(words) != 3:
-            QMessageBox.warning(
-                self,
-                'Ошибка',
-                'Введите ФИО полностью (3 слова)')
+            QMessageBox.warning(self, "Ошибка", "Введите ФИО полностью (3 слова)")
             return
         self.data_signal.emit(list_to_send)
         self.accept()
@@ -75,9 +64,7 @@ class PrepodAdd(QDialog):
         """func."""
         group = self.groupsComboBox.currentText()
         if self.curatorLineEdit.text():
-            self.curatorLineEdit.setText(
-                self.curatorLineEdit.text() + ', ' + group
-            )
+            self.curatorLineEdit.setText(self.curatorLineEdit.text() + ", " + group)
         else:
             self.curatorLineEdit.setText(group)
 

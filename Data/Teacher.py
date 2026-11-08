@@ -1,7 +1,7 @@
 """Итог часов одной рабочей таблицы."""
 
 
-class Teacher():
+class Teacher:
     """id таблицы, id преподавателя и итог часов."""
 
     def __init__(self, tbl_id, tchr_id, total):

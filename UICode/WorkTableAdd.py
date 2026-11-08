@@ -1,16 +1,17 @@
-"""code."""
+"""Диалог создания и правки рабочей таблицы."""
 
+import os
+
+from PyQt5 import QtGui
 from PyQt5.QtCore import pyqtSignal
 from PyQt5.QtWidgets import QDialog, QMessageBox
 from PyQt5.uic import loadUi
-from PyQt5 import QtGui
+
 import Models.DataHandler as DH
 import Models.SqlHandler as SQH
-import os
-
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-UI_PATH = os.path.join(BASE_DIR, '..', 'UI', 'addWorkTable.ui')
+UI_PATH = os.path.join(BASE_DIR, "..", "UI", "addWorkTable.ui")
 
 
 class CreateWorkTable(QDialog):
@@ -29,19 +30,18 @@ class CreateWorkTable(QDialog):
         self.cancelButton.clicked.connect(lambda: self.close())
         self.confirmButton.clicked.connect(self.on_ok)
         self._teachers_model = None
-        self.setWindowIcon(QtGui.QIcon(
-            QtGui.QPixmap(':/icons/Images/other.png')))
+        self.setWindowIcon(QtGui.QIcon(QtGui.QPixmap(":/icons/Images/other.png")))
 
     def get_stvkaDljnst(self):
         """func."""
         current_index = self.fioComboBox.currentIndex()
         current_id = self._teachers_model.get_id(current_index)
         position = SQH.get_col_where(
-            'doljnost', 'teacher_id', str(current_id), 'teachers')
+            "doljnost", "teacher_id", str(current_id), "teachers"
+        )
         if not position or position[0] in (None, ""):
             return None
-        rate = SQH.get_col_where(
-            'stavka', 'doljnost', position[0], 'doljnosti')
+        rate = SQH.get_col_where("stavka", "doljnost", position[0], "doljnosti")
         if not rate or rate[0] in (None, ""):
             return None
         return rate[0], current_id
@@ -56,35 +56,35 @@ class CreateWorkTable(QDialog):
         pochas = self.pochLineEdit.text()
         found = self.get_stvkaDljnst()
         if found is None:
-            QMessageBox.warning(self, 'Ошибка', 'У должности нет ставки')
+            QMessageBox.warning(self, "Ошибка", "У должности нет ставки")
             return
         stvkaDljnst, prepod_id = found
         if self.usualRadioButton.isChecked():
-            table_type = 'Обычная'
-            rate, error = self._required_number(mainstavk, 'Введите ставку')
+            table_type = "Обычная"
+            rate, error = self._required_number(mainstavk, "Введите ставку")
             if error:
-                QMessageBox.warning(self, 'Ошибка', error)
+                QMessageBox.warning(self, "Ошибка", error)
                 return
             total += rate * float(stvkaDljnst)
             extra, error = self._optional_number(pochasOsn)
             if error:
-                QMessageBox.warning(self, 'Ошибка', error)
+                QMessageBox.warning(self, "Ошибка", error)
                 return
             total += extra
             extra, error = self._optional_number(sovmest)
             if error:
-                QMessageBox.warning(self, 'Ошибка', error)
+                QMessageBox.warning(self, "Ошибка", error)
                 return
             total += extra * float(stvkaDljnst)
         elif self.pochasRadioButton.isChecked():
-            table_type = 'Почасовая'
-            hours, error = self._required_number(pochas, 'Введите часы')
+            table_type = "Почасовая"
+            hours, error = self._required_number(pochas, "Введите часы")
             if error:
-                QMessageBox.warning(self, 'Ошибка', error)
+                QMessageBox.warning(self, "Ошибка", error)
                 return
             total = hours
         else:
-            QMessageBox.warning(self, 'Ошибка', 'Выберите тип таблицы')
+            QMessageBox.warning(self, "Ошибка", "Выберите тип таблицы")
             return
         list_to_send = [
             fio,
@@ -94,7 +94,7 @@ class CreateWorkTable(QDialog):
             pochas,
             pochasOsn,
             sovmest,
-            total
+            total,
         ]
         self.data_signal.emit(list_to_send)
         self.accept()
@@ -156,9 +156,9 @@ class CreateWorkTable(QDialog):
         """func."""
         self.fioComboBox.setCurrentText(data[0])
         self.fioComboBox.setEditable(False)
-        if data[2] == 'Обычная':
+        if data[2] == "Обычная":
             self.usualRadioButton.setChecked(True)
-        if data[2] == 'Почасовая':
+        if data[2] == "Почасовая":
             self.pochasRadioButton.setChecked(True)
         self.stavkaLineEdit.setText(str(data[3]))
         self.pochLineEdit.setText(str(data[4]))

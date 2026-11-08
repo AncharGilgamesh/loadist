@@ -1,39 +1,29 @@
-"""Распределитель учебной нагрузки.
+"""Окно программы связывает сигналы кнопок со страницами нагрузки и кафедры."""
 
-Sorry for that
-"""
-
-from PyQt5.QtWidgets import QApplication, QMainWindow, QFileDialog,\
-      QMessageBox
-from PyQt5.QtCore import Qt
-from PyQt5 import QtGui
-from PyQt5.uic import loadUi
-from Models.ExcelHandler import ExcelHandler, XlsHandler
-from UICode.DoljnostiAdd import DoljnostAdd
-from UICode.PrepodAddNew import PrepodAdd
-from UICode.GroupAdd import GroupAdd
-from UICode.NapPodAdd import NapPodAdd
-from UICode.DiscipAdd import DisciplineAdd
-from UICode.WorkTableAdd import CreateWorkTable
-from UICode.SettingsDialog import SettingsDialog
-from Models.Models import MyModel, KafedraModels, MyListModel
-from PyQt5.QtCore import QFile, QTextStream, QPersistentModelIndex
-import Models.SqlHandler as SQH
-import Models.DataHandler as DH
-import sqlite3
-import Resources.breeze_resources
-import Resources.res_images  # noqa: F401  регистрация иконок Qt
 import os
-
 import sys
 
+from PyQt5 import QtGui
+from PyQt5.QtCore import QFile, QTextStream
+from PyQt5.QtWidgets import QApplication, QFileDialog, QMainWindow, QMessageBox
+from PyQt5.uic import loadUi
+
+import Models.DataHandler as DH
+import Models.SqlHandler as SQH
+import Resources.breeze_resources
+import Resources.res_images  # noqa: F401  регистрация иконок Qt
+from HourTransfer import HourTransfer
+from KafedraRecords import KafedraRecords
+from Models.ExcelHandler import ExcelHandler, XlsHandler
+from Models.Models import KafedraModels, MyListModel, MyModel
+from UICode.SettingsDialog import SettingsDialog
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-UI_PATH = os.path.join(BASE_DIR, 'UI', 'mainView.ui')
+UI_PATH = os.path.join(BASE_DIR, "UI", "mainView.ui")
 
 
-class MainWindow(QMainWindow):
-    """main."""
+class MainWindow(HourTransfer, KafedraRecords, QMainWindow):
+    """Окно со страницами распределения и кафедры."""
 
     def __init__(self):
         """func."""
@@ -75,13 +65,14 @@ class MainWindow(QMainWindow):
         self.uploadButton.clicked.connect(self.uploadData)
         self.saveMainNagruzka.clicked.connect(self.save_obsh_nagruzka)
         self.mainTeacherComboBox.currentIndexChanged.connect(
-            self.onComboBoxIndexChanged)
+            self.onComboBoxIndexChanged
+        )
         # Dojlnosti
         self.addDoljnostButton.clicked.connect(self.open_add_doljnosti)
         self.saveDoljnostiButton.clicked.connect(self.save_doljnost)
         self.delCurrentDoljnostButton.clicked.connect(
             lambda: self.del_current_row_in_table_view(
-             self.doljnostiTableView, self._doljnosti_model
+                self.doljnostiTableView, self._doljnosti_model
             )
         )
         self.delAllDoljnostiButton.clicked.connect(
@@ -93,7 +84,7 @@ class MainWindow(QMainWindow):
         self.editPrepodButton.clicked.connect(self.open_edit_teacher)
         self.delPrepodButton.clicked.connect(
             lambda: self.del_cur_row_tbl_view_for_sel_rows(
-             self.prepodsTableView, self._teacher_tbl_model
+                self.prepodsTableView, self._teacher_tbl_model
             )
         )
         self.delAllPrepodButton.clicked.connect(
@@ -105,26 +96,31 @@ class MainWindow(QMainWindow):
         self.editWorkTblButton.clicked.connect(self.open_edit_work_table)
         self.delWorkTblButton.clicked.connect(
             lambda: self.del_cur_row_tbl_view_for_sel_rows(
-             self.workTableView, self._work_tbl_model
+                self.workTableView, self._work_tbl_model
             )
         )
         self.delAllWorkTblsButton.clicked.connect(
-            lambda: self.remove_all_rows_in_table_view(self._work_tbl_model))
+            lambda: self.remove_all_rows_in_table_view(self._work_tbl_model)
+        )
         # Groups
         self.addGroupButton.clicked.connect(self.open_add_group)
         self.delCurrentGrButton.clicked.connect(
             lambda: self.del_current_row_in_table_view(
-             self.groupsTableView, self.kafedraModel))
+                self.groupsTableView, self.kafedraModel
+            )
+        )
         self.saveGroups.clicked.connect(self.save_groups)
         self.dellAllGrButton.clicked.connect(
-            lambda: self.remove_all_rows_in_table_view(self.kafedraModel))
+            lambda: self.remove_all_rows_in_table_view(self.kafedraModel)
+        )
         # Направления подготовки
         self.addNapPodButton.clicked.connect(self.open_add_napravlenia)
         self.saveNapPodButton.clicked.connect(self.save_nap_pod)
         self.delCurrNapButton.clicked.connect(
             lambda: self.del_current_row_in_table_view(
-             self.napPodTableView, self.nap_pod_model
-            ))
+                self.napPodTableView, self.nap_pod_model
+            )
+        )
         self.dellAllNapPod.clicked.connect(
             lambda: self.remove_all_rows_in_table_view(self.nap_pod_model)
         )
@@ -133,7 +129,7 @@ class MainWindow(QMainWindow):
         self.saveDisButton.clicked.connect(self.save_discipline)
         self.delCurrDisButton.clicked.connect(
             lambda: self.del_current_row_in_table_view(
-             self.disciplineTableView, self._discipline_model
+                self.disciplineTableView, self._discipline_model
             )
         )
         self.dellAllDisButton.clicked.connect(
@@ -152,73 +148,16 @@ class MainWindow(QMainWindow):
         # Навигация
         self.goToKafedraButton.clicked.connect(
             lambda: self.stackedWidget.setCurrentIndex(
-             self.stackedWidget.currentIndex() + 1))
+                self.stackedWidget.currentIndex() + 1
+            )
+        )
         self.goToMainButton.clicked.connect(
             lambda: self.stackedWidget.setCurrentIndex(
-             self.stackedWidget.currentIndex() - 1))
-        self.setWindowIcon(QtGui.QIcon(
-            QtGui.QPixmap(':/icons/Images/logo.png')))
-        self.setWindowTitle('Распределитель учебной нагрузки')
-
-    def row_inserting(self):
-        """Перенос часов выбранному преподавателю."""
-        selected_indexes = self.leftTableView.selectedIndexes()
-        if not selected_indexes:
-            QMessageBox.warning(self, 'Ошибка', 'Выберите ячейки')
-            return
-        row_data = DH.collect_selected_rows(self.model1, selected_indexes)
-        if row_data is None:
-            return
-        difference = self.check_hours(row_data)
-        if difference < 0:
-            self.get_back_basic()
-            self.model1.clearChangesDict()
-            self.model1.clearBasicDict()
-            self.model1.clear_edited_dict()
-            QMessageBox.warning(
-                self,
-                'Ошибка',
-                'Часы превышены на ' + str(abs(difference))
+                self.stackedWidget.currentIndex() - 1
             )
-            return
-        tbl_id = self.current_work_table_id()
-        DH.move_rows(
-            self.model1,
-            self._rtblModels[tbl_id],
-            selected_indexes,
-            row_data,
         )
-        self.leftTableView.reset()
-
-    def check_hours(self, row_data):
-        """func."""
-        tbl_id = self.current_work_table_id()
-        transfer_sum = DH.sum_lists(row_data)
-        table_sum = sum(self._rtblModels[tbl_id].getAllColSum())
-        table_limit = self._prepods[tbl_id].getTotalTime()
-        difference = table_limit - transfer_sum - table_sum
-        return difference
-
-    def get_back_basic(self):
-        """func."""
-        basic_data = self.model1.get_basic_rows()
-        for k, v in basic_data.items():
-            self.model1.removeRows(int(k), 1)
-            self.model1.insertRow(int(k), v)
-        self.model1.updateIds()
-
-    def row_outserting(self):
-        """Возврат часов в общую нагрузку."""
-        selected_indexes = self.rightTableView.selectedIndexes()
-        if not selected_indexes:
-            QMessageBox.warning(self, 'Ошибка', 'Выберите ячейки')
-            return
-        model = self._rtblModels[self.current_work_table_id()]
-        row_data = DH.collect_selected_rows(model, selected_indexes)
-        if row_data is None:
-            return
-        DH.move_rows(model, self.model1, selected_indexes, row_data)
-        self.rightTableView.reset()
+        self.setWindowIcon(QtGui.QIcon(QtGui.QPixmap(":/icons/Images/logo.png")))
+        self.setWindowTitle("Распределитель учебной нагрузки")
 
     # Настройки
     def open_settings(self):
@@ -237,7 +176,8 @@ class MainWindow(QMainWindow):
         # таблицы преподавателей
         if self._rtblModels:
             DH.set_prepods_stats(
-                self._rtblModels, self._stat_model, self._prepod_labels)
+                self._rtblModels, self._stat_model, self._prepod_labels
+            )
         self.statisticTableView.resizeColumnsToContents()
 
     def save_statistics(self):
@@ -247,413 +187,18 @@ class MainWindow(QMainWindow):
         data.insert(0, header)
         options = QFileDialog.Options()
         fname, _ = QFileDialog.getSaveFileName(
-            self,
-            "Сохранить файл", "", "Excel файлы (*.xlsx)", options=options)
+            self, "Сохранить файл", "", "Excel файлы (*.xlsx)", options=options
+        )
         if not fname:
             return
         excel = ExcelHandler()
         excel.write_statistics(data, fname)
 
-    # Универсальные функции для модуля кафедры
-    # Удаление всей инфы из таблицы в Kafedra модуле
-    def remove_all_rows_in_table_view(self, model):
-        """func."""
-        data_len = model.rowCount()
-        model.removeRows(0, data_len)
-
-    # Удаление выбранной строки для типа выбора Select Items
-    def del_current_row_in_table_view(self, tableView, model):
-        """func."""
-        """Удаляет выбранные строки для selectionBehaviour - Select Items"""
-        index_list = []
-        for model_index in tableView.selectedIndexes():
-            index = QPersistentModelIndex(model_index)
-            index_list.append(index)
-        for index in index_list:
-            model.removeRow(index.row())
-
-    # Удаление выбранной строки для типа выбора Select Rows
-    def del_cur_row_tbl_view_for_sel_rows(self, tableView, model):
-        """func."""
-        """
-        Удаляет выбранные строки для selectionBehaviour - Select Rows
-        """
-        selection_model = tableView.selectionModel()
-        selected_indexes = selection_model.selectedRows()
-        index_list = []
-        for model_index in selected_indexes:
-            index_list.append(QPersistentModelIndex(model_index))
-        index_list.sort(key=lambda index: index.row(), reverse=True)
-        for index in index_list:
-            model.removeRow(index.row())
-
-    def get_selected_row_kafedra(self, tableView, row):
-        """func."""
-        selection_model = tableView.selectionModel()
-        selected_rows = selection_model.selectedRows()
-        if not selected_rows:
-            QMessageBox.information(
-                self,
-                'Выберите строку',
-                'Выберите строку, которую хотите редактировать'
-            )
-            return False
-        model = tableView.model()
-        for col in range(model.columnCount()):
-            data = model.data(
-                model.index(selected_rows[0].row(), col), Qt.DisplayRole)
-            row.append(data)
-        return True
-
-    # Добавить должности
-    def open_add_doljnosti(self):
-        """func."""
-        self.addDoljnosti = DoljnostAdd()
-        self.addDoljnosti.submitted.connect(self.add_doljnosti)
-        self.addDoljnosti.show()
-
-    def save_doljnost(self):
-        """func."""
-        data_to_save = self._doljnosti_model.get_data()
-        SQH.insert_into_doljnost_table(data_to_save)
-        self.update_dljnst_combo_model()
-
-    def add_doljnosti(self, dljnst, stvka):
-        """func."""
-        list_to_add = [dljnst, stvka]
-        self._doljnosti_model.insertRow(0, list_to_add)
-
-    def update_kafedra_doljnosti(self):
-        """func."""
-        doljnosti_data = SQH.select_all_from_table('doljnosti')
-        doljnosti_header = ['Должность', 'Ставка(час)']
-        self._doljnosti_model = KafedraModels(doljnosti_data, doljnosti_header)
-        self.doljnostiTableView.setModel(self._doljnosti_model)
-
-    def update_dljnst_combo_model(self):
-        """func."""
-        dljnsti = self._doljnosti_model.get_col_by_name('Должность')
-        self._dljnst_combo_model = MyListModel(dljnsti)
-
-    # Занимаемся преподавателями
-    # Смотри на это, как пример порядка определения
-    # Преподаватели
-    def open_add_teacher(self):
-        """func."""
-        if not self._dljnst_combo_model.rowCount():
-            QMessageBox.warning(
-                self,
-                'Ошибка',
-                'Для продолжения работы добавьте должности'
-            )
-            return
-        self.addTeacher = PrepodAdd()
-        # self.addTeacher.set_dljnsti(self._dljnst_combo_model)
-        # self.addTeacher.data_signal.connect(self.add_teacher)
-        # self.addTeacher.set_groups(self._groups_model)
-        self.teacher_components(
-            self.addTeacher,
-            self._dljnst_combo_model,
-            self._groups_model,
-            self.add_teacher
-        )
-        self.addTeacher.show()
-
-    def teacher_components(self, dialog, dljnst, groups, reciever):
-        """func."""
-        dialog.set_dljnsti(dljnst)
-        dialog.data_signal.connect(reciever)
-        dialog.set_groups(groups)
-
-    def update_teacher_table(self):
-        """func."""
-        teacher_data = SQH.select_all_from_table('teachers')
-        teacher_header = [
-            'id',
-            'ФИО',
-            'Ученое звание',
-            'Ученая степень',
-            'Должность',
-            'Ограничение по дипломникам',
-            'Курирует группу']
-        self._teacher_tbl_model = KafedraModels(teacher_data, teacher_header)
-        self.prepodsTableView.setModel(self._teacher_tbl_model)
-        # self.prepodsTableView.setColumnHidden(0, True)
-
-    def add_teacher(self, data):
-        """func."""
-        row_count = self._teacher_tbl_model.rowCount()
-        ids = self._teacher_tbl_model.get_col_by_name('id')
-        if row_count in ids:
-            data.insert(0, row_count + len(ids))
-        else:
-            data.insert(0, row_count)
-        self._teacher_tbl_model.insertRow(row_count, data)
-
-    def save_teacher(self):
-        """func."""
-        self.check_for_del_ids()
-        try:
-            SQH.replace_teachers_and_work_tables(
-                self._teacher_tbl_model.get_data(),
-                self._work_tbl_model.get_data(),
-            )
-        except sqlite3.IntegrityError:
-            QMessageBox.warning(
-                self,
-                "Ошибка",
-                "Не удалось сохранить преподавателей. "
-                "Проверьте, что их номера не повторяются "
-                "и что рабочие таблицы ссылаются на них.",
-            )
-            self.update_teacher_table()
-            self.update_teacher_names()
-            self.update_work_table()
-            self.update_prepods_dict()
-            if self._data_loaded:
-                self.update_right_models(self._header)
-            self.updatePrepodsComboBox()
-            return
-        self.update_teacher_names()
-        self.update_prepods_dict()
-        if self._data_loaded:
-            self.update_right_models(self._header)
-        self.updatePrepodsComboBox()
-
-    def update_teacher_names(self):
-        """func."""
-        data = self._teacher_tbl_model.get_col_by_name('ФИО')
-        teacher_ids = self._teacher_tbl_model.get_col_by_name('id')
-        self._teacher_names_model = MyListModel(data, teacher_ids)
-
-    def open_edit_teacher(self):
-        """func."""
-        row = []
-        if not self.get_selected_row_kafedra(self.prepodsTableView, row):
-            return
-        editTeacher = PrepodAdd()
-        editTeacher.setWindowTitle('Редактировать преподавателя')
-        editTeacher.set_edit_lines(row[1:])
-        self.teacher_components(
-            editTeacher,
-            self._dljnst_combo_model,
-            self._groups_model,
-            lambda data: self.edit_teacher(data, row[0])
-        )
-        # editTeacher.data_signal.connect(
-        # lambda data: self.edit_teacher(data, row[0]))
-        editTeacher.show()
-
-    def edit_teacher(self, data, id):
-        """func."""
-        new_data = [id] + data
-        SQH.update_teachers(new_data)
-        self.update_teacher_table()
-
-    # Рабочие таблицы
-    def open_work_create(self):
-        """func."""
-        if not self._teacher_names_model.rowCount():
-            QMessageBox.warning(
-                self,
-                'Ошибка',
-                'Для продолжения работы добавьте преподавателей'
-            )
-            return
-        self.addWorkTable = CreateWorkTable()
-        self.addWorkTable.set_teachers(self._teacher_names_model)
-        self.addWorkTable.data_signal.connect(self.add_work_table)
-        self.addWorkTable.show()
-
-    def update_work_table(self):
-        """func."""
-        work_tbl_data = SQH.select_all_from_table('workTables')
-        work_tbl_headers = [
-            'id',
-            'ФИО',
-            '№ пр.',
-            'Тип',
-            'Осн. ставка',
-            'Почас.',
-            'Почас. доп.',
-            'Совместительство',
-            'Итог'
-        ]
-        self._work_tbl_model = KafedraModels(work_tbl_data, work_tbl_headers)
-        self.workTableView.setModel(self._work_tbl_model)
-        # self.workTableView.setColumnHidden(0, True)
-        # self.workTableView.setColumnHidden(2, True)
-
-    def add_work_table(self, data):
-        """func."""
-        row_count = self._work_tbl_model.rowCount()
-        data.insert(0, row_count)
-        self._work_tbl_model.insertRow(row_count, data)
-
-    def save_work_table(self):
-        """func."""
-        data = self._work_tbl_model.get_data()
-        try:
-            SQH.insert_into_work_table(data)
-        except sqlite3.IntegrityError:
-            QMessageBox.warning(
-                self,
-                "Ошибка",
-                "Не удалось сохранить рабочие таблицы. "
-                "Проверьте номера таблиц и наличие преподавателя.",
-            )
-            return False
-        self.update_prepods_dict()
-        if self._data_loaded:
-            self.update_right_models(self._header)
-        self.updatePrepodsComboBox()
-        return True
-
-    def open_edit_work_table(self):
-        """func."""
-        row = []
-        if not self.get_selected_row_kafedra(self.workTableView, row):
-            return
-        edit_work_table_window = CreateWorkTable()
-        edit_work_table_window.set_teachers(self._teacher_names_model)
-        edit_work_table_window.set_edit_lines(row[1:])
-        edit_work_table_window.data_signal.connect(
-            lambda data: self.edit_work_table(data, row[0]))
-        edit_work_table_window.exec_()
-
-    def edit_work_table(self, data, id):
-        """func."""
-        new_data = [id] + data
-        SQH.update_work_table(new_data)
-        self.update_work_table()
-
-    def check_for_del_ids(self):
-        """func."""
-        prepod_ids = {
-            str(teacher_id)
-            for teacher_id in self._teacher_tbl_model.get_col_by_name('id')
-        }
-        teacher_col = self._work_tbl_model.get_header().index('№ пр.')
-        rows_to_remove = []
-        for row_index, row in enumerate(self._work_tbl_model.get_data()):
-            if str(row[teacher_col]) not in prepod_ids:
-                rows_to_remove.append(row_index)
-        for row_index in reversed(rows_to_remove):
-            self._work_tbl_model.removeRow(row_index)
-
-    # Дисциплины
-    def open_add_discipline(self):
-        """func."""
-        self.addDiscipline = DisciplineAdd()
-        self.addDiscipline.set_codes(self.nap_code_model)
-        self.addDiscipline.data_signal.connect(self.add_discipline)
-        self.addDiscipline.show()
-
-    def add_discipline(self, code, name):
-        """func."""
-        list_to_insert = [code, name]
-        DH.kafedra_id_add(self._discipline_model, 'id', list_to_insert)
-        # self._discipline_model.insertRow(0, list_to_insert)
-
-    def save_discipline(self):
-        """func."""
-        data = self._discipline_model.get_data()
-        SQH.insert_into_disciplines_table(data)
-
-    def update_discipline(self):
-        """func."""
-        discipline_data = SQH.select_all_from_table('disciplines')
-        discip_headers = ['id', 'Направление', 'Дисциплина']
-        self._discipline_model = KafedraModels(discipline_data, discip_headers)
-        self.disciplineTableView.setModel(self._discipline_model)
-        self.disciplineTableView.setColumnHidden(0, True)
-
-    # Направления подготовки
-    def open_add_napravlenia(self):
-        """func."""
-        self.addNapPod = NapPodAdd()
-        self.addNapPod.data_signal.connect(self.add_nap_pod)
-        self.addNapPod.exec_()
-
-    def update_nap_pod(self):
-        """func."""
-        nap_pod_data = SQH.select_all_from_table('napPod')
-        nap_pod_headers = ['Код', 'Наименование']
-        self.nap_pod_model = KafedraModels(nap_pod_data, nap_pod_headers)
-        self.napPodTableView.setModel(self.nap_pod_model)
-
-    def update_nap_code(self):
-        """func."""
-        nap_codes = self.nap_pod_model.get_col_by_name('Код')
-        self.nap_code_model = MyListModel(nap_codes)
-
-    def save_nap_pod(self):
-        """func."""
-        data_to_save = self.nap_pod_model.get_data()
-        SQH.insert_into_napPod_table(data_to_save)
-        self.update_nap_code()
-
-    def add_nap_pod(self, code, name):
-        """func."""
-        data_comparison = self.nap_pod_model.get_col_by_name('Код')
-        if DH.data_comparsion(data_comparison, code):
-            QMessageBox.warning(self, 'Ошибка', 'Такое направление уже есть')
-            return
-        list_to_insert = [code, name]
-        self.nap_pod_model.insertRow(0, list_to_insert)
-
-    # Группы
-    def open_add_group(self):
-        """Open groups dialog window."""
-        self.addGroup = GroupAdd()
-        self.addGroup.set_codes(self.nap_code_model)
-        self.addGroup.set_curators(self._teacher_names_model)
-        self.addGroup.data_signal.connect(self.add_group)
-        self.addGroup.exec_()
-
-    def add_group(self, grNum, amount, curator, code):
-        """Add group."""
-        data_comprasion = self.kafedraModel.get_col_by_name('Группа')
-        data_comprasion = DH.divide_aspirants(data_comprasion)
-        if DH.data_comparsion(data_comprasion, grNum):
-            QMessageBox.warning(self, 'Ошибка', 'Группа уже есть в таблице')
-            return
-        list_to_insert = [
-            grNum,
-            int(amount),
-            curator,
-            code
-        ]
-        # self.kafedraModel.insertRow(0, list_to_insert)
-        DH.kafedra_id_add(self.kafedraModel, 'id', list_to_insert)
-        self.update_groups_without_aspirants()
-
-    def updateKafedraGroups(self):
-        """Update groups."""
-        kafedraData = SQH.select_all_from_table('kafedraGroups')
-        kafedraHeaders = [
-            'id', 'Группа', 'Кол-во людей', 'Куратор', 'Направление']
-        self.kafedraModel = KafedraModels(kafedraData, kafedraHeaders)
-        self.groupsTableView.setModel(self.kafedraModel)
-        self.groupsTableView.setColumnHidden(0, True)
-
-    def update_groups_without_aspirants(self):
-        """Update groups model that put in prepods dialog window."""
-        data = self.kafedraModel.get_col_by_name('Группа')
-        data = DH.divide_aspirants(data)
-        self._groups_model = MyListModel(data)
-
-    def save_groups(self):
-        """Save all groups."""
-        data_to_save = self.kafedraModel.get_data()
-        SQH.insert_into_groups_table(data_to_save)
-        self.update_groups_without_aspirants()
-
     # Распределение нагрузки
     # Метка работы
     def update_prepods_dict(self):
         """Update prepods dictionary."""
-        data = SQH.select_all_from_table('workTables')
+        data = SQH.select_all_from_table("workTables")
         self._prepods.clear()
         DH.update_prepods_dict(data, self._prepods)
         self._prepod_labels = DH.work_table_labels(data)
@@ -702,11 +247,7 @@ class MainWindow(QMainWindow):
 
     def _empty_right_model(self, key, header):
         """Пустая правая таблица преподавателя."""
-        data = [
-            [key] * 25,
-            [key] * 25,
-            [key] * 25
-        ]
+        data = [[key] * 25, [key] * 25, [key] * 25]
         model = MyModel(data, header)
         model.removeRows(0, 1)
         model.removeRows(0, 1)
@@ -726,8 +267,7 @@ class MainWindow(QMainWindow):
                 del self._rtblModels[tbl_id]
         for tbl_id in self._prepods:
             if tbl_id not in self._rtblModels:
-                self._rtblModels[tbl_id] = self._empty_right_model(
-                    tbl_id, header)
+                self._rtblModels[tbl_id] = self._empty_right_model(tbl_id, header)
 
     def loadData(self):
         """
@@ -737,7 +277,8 @@ class MainWindow(QMainWindow):
         """
         if not self.mainTeacherComboBox.count():
             QMessageBox.warning(
-                self, 'Ошибка', 'В программе отсутствуют рабочие таблицы')
+                self, "Ошибка", "В программе отсутствуют рабочие таблицы"
+            )
             return
         if self._data_loaded:
             answer = QMessageBox.question(
@@ -750,14 +291,12 @@ class MainWindow(QMainWindow):
             if answer != QMessageBox.Yes:
                 return
         fname, _ = QFileDialog.getOpenFileName(
-            self, "Choose file", "", "Excel Files (*.xlsx *.xls *.xlsm)")
+            self, "Choose file", "", "Excel Files (*.xlsx *.xls *.xlsm)"
+        )
         if not fname:
             return
-        new_excel = [
-            '.xlsx',
-            '.xlsm'
-        ]
-        old_excel = ['.xls']
+        new_excel = [".xlsx", ".xlsm"]
+        old_excel = [".xls"]
         file_extension = os.path.splitext(fname)[-1].lower()
         load_error = (
             "Не удалось загрузить файл. Проверьте, что это книга Excel "
@@ -767,7 +306,7 @@ class MainWindow(QMainWindow):
             if file_extension in new_excel:
                 excel = ExcelHandler(fname)
                 excel.open_workbook()
-                excel.get_sheet_by_name('нагрузка кафедры')
+                excel.get_sheet_by_name("нагрузка кафедры")
                 self._header, self._data = excel.read_rows_to_list()
             elif file_extension in old_excel:
                 excel = XlsHandler(fname)
@@ -812,9 +351,7 @@ class MainWindow(QMainWindow):
     def _workbook_name(self, tbl_id):
         """func."""
         label = self._prepod_labels.get(tbl_id, str(tbl_id))
-        cleaned = "".join(
-            ch for ch in label if ch not in '\\/:*?"<>|'
-        ).strip(" .")
+        cleaned = "".join(ch for ch in label if ch not in '\\/:*?"<>|').strip(" .")
         if not cleaned:
             cleaned = str(tbl_id)
         return cleaned + ".xlsx"
@@ -855,8 +392,7 @@ class MainWindow(QMainWindow):
             return error
         excel = ExcelHandler()
         try:
-            excel.writeRows(
-                osen, vesna, path, self._prepods[tbl_id].get_tbl_id())
+            excel.writeRows(osen, vesna, path, self._prepods[tbl_id].get_tbl_id())
         except ValueError as exc:
             return str(exc)
         return None
@@ -864,8 +400,7 @@ class MainWindow(QMainWindow):
     def uploadData(self):
         """Upload data."""
         if not self._data_loaded:
-            QMessageBox.warning(
-                self, 'Ошибка', 'Отсутствуют данные для выгрузки')
+            QMessageBox.warning(self, "Ошибка", "Отсутствуют данные для выгрузки")
             return
         difference = self.check_lower_limit()
         if difference != 0:
@@ -874,8 +409,8 @@ class MainWindow(QMainWindow):
         tbl_id = self.current_work_table_id()
         options = QFileDialog.Options()
         fname, _ = QFileDialog.getSaveFileName(
-            self,
-            "Сохранить файл", "", "Excel файлы (*.xlsx)", options=options)
+            self, "Сохранить файл", "", "Excel файлы (*.xlsx)", options=options
+        )
         if not fname:
             return
         error = self.export_teacher_workbook(tbl_id, fname)
@@ -885,12 +420,12 @@ class MainWindow(QMainWindow):
     def upload_all_teachers(self):
         """Выгружает план каждого преподавателя в выбранную папку."""
         if not self._data_loaded:
-            QMessageBox.warning(
-                self, "Ошибка", "Отсутствуют данные для выгрузки")
+            QMessageBox.warning(self, "Ошибка", "Отсутствуют данные для выгрузки")
             return
         if not self._prepods:
             QMessageBox.warning(
-                self, "Ошибка", "В программе отсутствуют рабочие таблицы")
+                self, "Ошибка", "В программе отсутствуют рабочие таблицы"
+            )
             return
         mismatches = []
         for tbl_id, teacher in self._prepods.items():
@@ -900,8 +435,7 @@ class MainWindow(QMainWindow):
             except (TypeError, ValueError):
                 same = False
             if not same:
-                mismatches.append(
-                    self._prepod_labels.get(tbl_id, str(tbl_id)))
+                mismatches.append(self._prepod_labels.get(tbl_id, str(tbl_id)))
         if mismatches:
             answer = QMessageBox.question(
                 self,
@@ -933,8 +467,7 @@ class MainWindow(QMainWindow):
         """Save obs nagruzka."""
         # Сохраняем общую нагрузку
         if not self._data_loaded:
-            QMessageBox.warning(
-                self, 'Ошибка', 'Общая нагрузка не загружена')
+            QMessageBox.warning(self, "Ошибка", "Общая нагрузка не загружена")
             return
         data = self.model1.get_data()
         workdata = DH.makeNumberable(data.copy())
@@ -943,8 +476,8 @@ class MainWindow(QMainWindow):
         #     self, "Choose  save file", "*", "*.xlsx")
         options = QFileDialog.Options()
         fname, _ = QFileDialog.getSaveFileName(
-            self,
-            "Сохранить файл", "", "Excel файлы (*.xlsx)", options=options)
+            self, "Сохранить файл", "", "Excel файлы (*.xlsx)", options=options
+        )
         if not fname:
             return
         excel = ExcelHandler()
@@ -960,21 +493,22 @@ def toggle_stylesheet(path):
     """
     app = QApplication.instance()
     if app is None:
-        raise RuntimeError('Qt application not found')
+        raise RuntimeError("Qt application not found")
     file = QFile(path)
     file.open(QFile.ReadOnly | QFile.Text)
     stream = QTextStream(file)
     app.setStyleSheet(stream.readAll())
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     app = QApplication(sys.argv)
     mainwindow = MainWindow()
     mainwindow.actionDark.triggered.connect(
-        lambda: toggle_stylesheet(":/dark/stylesheet.qss"))
+        lambda: toggle_stylesheet(":/dark/stylesheet.qss")
+    )
     mainwindow.actionLight.triggered.connect(
-        lambda: toggle_stylesheet(":/light/stylesheet.qss"))
-    mainwindow.actionDefault.triggered.connect(
-        lambda: app.setStyleSheet(""))
+        lambda: toggle_stylesheet(":/light/stylesheet.qss")
+    )
+    mainwindow.actionDefault.triggered.connect(lambda: app.setStyleSheet(""))
     mainwindow.show()
     app.exec_()

@@ -1,26 +1,41 @@
-"""sqlHandler."""
+"""Схема SQLite и запросы к базам нагрузки и настроек."""
 
 import os
 import sqlite3
 
-
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_DIR = os.path.join(BASE_DIR, '..', 'DB')
-pathDb = os.path.join(DB_DIR, 'nagruzka.db')
-SETTING_DB = os.path.join(DB_DIR, 'settings.db')
+DB_DIR = os.path.join(BASE_DIR, "..", "DB")
+pathDb = os.path.join(DB_DIR, "nagruzka.db")
+SETTING_DB = os.path.join(DB_DIR, "settings.db")
 
 TABLES = {
     "teachers": (
-        "teacher_id", "fio", "zvanie", "stepen",
-        "doljnost", "dipLimit", "curator",
+        "teacher_id",
+        "fio",
+        "zvanie",
+        "stepen",
+        "doljnost",
+        "dipLimit",
+        "curator",
     ),
     "workTables": (
-        "tblId", "fio", "teacher_id", "type", "mainstvka",
-        "pochas", "pochasDop", "sovmest", "total",
+        "tblId",
+        "fio",
+        "teacher_id",
+        "type",
+        "mainstvka",
+        "pochas",
+        "pochasDop",
+        "sovmest",
+        "total",
     ),
     "doljnosti": ("doljnost", "stavka"),
     "kafedraGroups": (
-        "group_id", "groupName", "amount", "curator", "napCode",
+        "group_id",
+        "groupName",
+        "amount",
+        "curator",
+        "napCode",
     ),
     "disciplines": ("dis_id", "nap_code", "discipline"),
     "napPod": ("nap_code", "nap_name"),
@@ -94,7 +109,7 @@ def create_work_table():
     """func."""
     with _connect(pathDb) as con:
         cur = con.cursor()
-        query = ("""
+        query = """
         CREATE TABLE IF NOT EXISTS workTables (
         tblId INTEGER PRIMARY KEY,
         fio TEXT,
@@ -107,7 +122,7 @@ def create_work_table():
         sovmest REAL,
         total REAL
         )
-        """)
+        """
         cur.execute(query)
         con.commit()
 
@@ -116,7 +131,7 @@ def create_settings_table():
     """func."""
     with _connect(SETTING_DB) as con:
         cur = con.cursor()
-        query = ("""
+        query = """
         CREATE TABLE IF NOT EXISTS settings (
         start_year INTEGER,
         end_year INTEGER,
@@ -129,7 +144,7 @@ def create_settings_table():
         start_col INTEGER,
         end_col INTEGER
         )
-        """)
+        """
         cur.execute(query)
         con.commit()
 
@@ -138,7 +153,7 @@ def create_teachers_table():
     """func."""
     with _connect(pathDb) as con:
         cur = con.cursor()
-        query = ("""
+        query = """
         CREATE TABLE IF NOT EXISTS teachers (
         teacher_id INTEGER PRIMARY KEY,
         fio TEXT,
@@ -148,7 +163,7 @@ def create_teachers_table():
         dipLimit INTEGER,
         curator TEXT
         )
-        """)
+        """
         cur.execute(query)
         con.commit()
 
@@ -184,13 +199,13 @@ def create_discipline_table():
     """func."""
     with _connect(pathDb) as con:
         cur = con.cursor()
-        query = ("""
+        query = """
         CREATE TABLE IF NOT EXISTS disciplines(
         dis_id INTEGER PRIMARY KEY,
         nap_code TEXT,
         discipline TEXT
         )
-        """)
+        """
         cur.execute(query)
         con.commit()
 
@@ -199,12 +214,12 @@ def create_nap_pod_table():
     """func."""
     with _connect(pathDb) as con:
         cur = con.cursor()
-        query = ("""
+        query = """
         CREATE TABLE IF NOT EXISTS napPod(
         nap_code TEXT PRIMARY KEY,
         nap_name TEXT
         )
-        """)
+        """
         cur.execute(query)
         con.commit()
 
@@ -252,8 +267,13 @@ def _duplicate_key_message(cur):
     for table, column, label in checks:
         duplicates = cur.execute(
             "SELECT COUNT(*) FROM ("
-            "SELECT " + column + " FROM " + table +
-            " GROUP BY " + column + " HAVING COUNT(*) > 1)"
+            "SELECT "
+            + column
+            + " FROM "
+            + table
+            + " GROUP BY "
+            + column
+            + " HAVING COUNT(*) > 1)"
         ).fetchone()[0]
         empty = cur.execute(
             "SELECT COUNT(*) FROM " + table + " WHERE " + column + " IS NULL"
@@ -397,7 +417,8 @@ def insert_into_setting_table(list_to_add):
     with _connect(SETTING_DB) as con:
         cur = con.cursor()
         cur.execute("DELETE FROM settings")
-        cur.execute("""
+        cur.execute(
+            """
         INSERT INTO settings (
         start_year,
         end_year,
@@ -410,7 +431,9 @@ def insert_into_setting_table(list_to_add):
         start_col,
         end_col
         ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, list_to_add)
+        """,
+            list_to_add,
+        )
 
 
 def insert_into_teachers_table(list_to_add):
@@ -419,7 +442,8 @@ def insert_into_teachers_table(list_to_add):
     try:
         cur = con.cursor()
         cur.execute("DELETE FROM teachers")
-        cur.executemany("""
+        cur.executemany(
+            """
         INSERT INTO teachers (
         teacher_id,
         fio,
@@ -429,7 +453,9 @@ def insert_into_teachers_table(list_to_add):
         dipLimit,
         curator
         ) VALUES(?, ?, ?, ?, ?, ?, ?)
-        """, list_to_add)
+        """,
+            list_to_add,
+        )
         con.commit()
     except Exception:
         con.rollback()
@@ -443,11 +469,14 @@ def insert_into_doljnost_table(list_to_add):
     with _connect(pathDb) as con:
         cur = con.cursor()
         cur.execute("DELETE FROM doljnosti")
-        cur.executemany("""
+        cur.executemany(
+            """
         INSERT INTO doljnosti (
         doljnost, stavka
         ) VALUES( ?, ?)
-         """, list_to_add)
+         """,
+            list_to_add,
+        )
 
 
 def insert_into_groups_table(list_to_add):
@@ -573,8 +602,13 @@ def get_col_where(col_to_get, col_condition, condition, tablename):
     with _connect(pathDb) as con:
         cur = con.cursor()
         cur.execute(
-            "SELECT " + column + " FROM " + table +
-            " WHERE " + condition_column + " = ?",
+            "SELECT "
+            + column
+            + " FROM "
+            + table
+            + " WHERE "
+            + condition_column
+            + " = ?",
             (condition,),
         )
         data = cur.fetchone()
@@ -599,7 +633,7 @@ def update_teachers(data):
     """func."""
     with _connect(pathDb) as con:
         cur = con.cursor()
-        query = ("""
+        query = """
         UPDATE teachers
         SET teacher_id = ?,
             fio = ?,
@@ -609,7 +643,7 @@ def update_teachers(data):
             dipLimit = ?,
             curator = ?
         WHERE teacher_id = ?
-        """)
+        """
         cur.execute(query, list(data) + [data[0]])
         con.commit()
 
@@ -618,7 +652,7 @@ def update_work_table(data):
     """func."""
     with _connect(pathDb) as con:
         cur = con.cursor()
-        query = ("""
+        query = """
         UPDATE workTables
         SET tblId = ?,
             fio = ?,
@@ -630,7 +664,7 @@ def update_work_table(data):
             sovmest = ?,
             total = ?
         WHERE tblId = ?
-        """)
+        """
         cur.execute(query, list(data) + [data[0]])
         con.commit()
 

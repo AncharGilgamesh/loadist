@@ -1,9 +1,17 @@
-"""Doljnosti."""
+"""Диалог добавления должности."""
 
-from PyQt5.QtWidgets import QDialog, QLineEdit, QVBoxLayout, QLabel,\
-      QHBoxLayout, QPushButton, QMessageBox
-from PyQt5.QtCore import pyqtSignal
 from PyQt5 import QtGui
+from PyQt5.QtCore import pyqtSignal
+from PyQt5.QtWidgets import (
+    QDialog,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QMessageBox,
+    QPushButton,
+    QVBoxLayout,
+)
+
 import Models.DataHandler as DH
 
 
@@ -26,26 +34,25 @@ class DoljnostAdd(QDialog):
         self.lineEdit2 = QLineEdit(self)
         hbox.addWidget(self.lineEdit2)
         vbox.addLayout(hbox)
-        self.ok_button = QPushButton("Ok", self)
+        self.ok_button = QPushButton("ОК", self)
         vbox.addWidget(self.ok_button)
-        self.cancel_button = QPushButton("Cancel", self)
+        self.cancel_button = QPushButton("Отмена", self)
         vbox.addWidget(self.cancel_button)
         self.ok_button.clicked.connect(self.on_ok)
         self.cancel_button.clicked.connect(self.reject)
-        self.setWindowIcon(QtGui.QIcon(
-            QtGui.QPixmap(':/icons/Images/other.png')))
+        self.setWindowIcon(QtGui.QIcon(QtGui.QPixmap(":/icons/Images/other.png")))
 
     def on_ok(self):
         """func."""
         if not self.lineEdit1.text():
-            QMessageBox.warning(self, "Error", "Пожалуйста, введите должность")
+            QMessageBox.warning(self, "Ошибка", "Пожалуйста, введите должность")
             return
         if not self.lineEdit2.text():
-            QMessageBox.warning(self, "Error", "Пожалуйста, введите ставку")
+            QMessageBox.warning(self, "Ошибка", "Пожалуйста, введите ставку")
             return
         rate, error = DH.parse_non_negative_number(self.lineEdit2.text())
         if error:
-            QMessageBox.warning(self, "Error", error)
+            QMessageBox.warning(self, "Ошибка", error)
             return
         self.submitted.emit(self.lineEdit1.text(), rate)
         self.accept()
