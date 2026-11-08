@@ -3,3 +3,13 @@ Data/__pycache__/
 Models/__pycache__/
 Resources/__pycache__/
 UICode/__pycache__/
+DB/*.db
+!DB/nagruzka.db
+!DB/settings.db
+*.pyc
+.venv/
+.ruff_cache/
+.pytest_cache/
+__pycache__/
+Example/db/
+Example/output/
