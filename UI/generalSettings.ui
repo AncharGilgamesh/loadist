@@ -6,15 +6,12 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>378</width>
-    <height>432</height>
+    <width>640</width>
+    <height>480</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>Генеральные настройки</string>
-  </property>
-  <property name="styleSheet">
-   <string notr="true">font: 12pt &quot;Times New Roman&quot;;</string>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
    <item>

@@ -5,7 +5,15 @@ import sys
 
 from PyQt5 import QtGui
 from PyQt5.QtCore import QFile, QTextStream
-from PyQt5.QtWidgets import QApplication, QFileDialog, QMainWindow, QMessageBox
+from PyQt5.QtWidgets import (
+    QApplication,
+    QFileDialog,
+    QHeaderView,
+    QLabel,
+    QMainWindow,
+    QMessageBox,
+    QTableView,
+)
 from PyQt5.uic import loadUi
 
 import Models.DataHandler as DH
@@ -20,6 +28,9 @@ from UICode.SettingsDialog import SettingsDialog
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 UI_PATH = os.path.join(BASE_DIR, "UI", "mainView.ui")
+ACADEMIC_THEME = os.path.join(
+    BASE_DIR, "Resources", "themes", "academic", "stylesheet.qss"
+)
 
 
 class MainWindow(HourTransfer, KafedraRecords, QMainWindow):
@@ -146,18 +157,52 @@ class MainWindow(HourTransfer, KafedraRecords, QMainWindow):
         self.settingsAction.triggered.connect(self.open_settings)
         self.exitAction.triggered.connect(lambda: self.close())
         # Навигация
-        self.goToKafedraButton.clicked.connect(
-            lambda: self.stackedWidget.setCurrentIndex(
-                self.stackedWidget.currentIndex() + 1
-            )
-        )
-        self.goToMainButton.clicked.connect(
-            lambda: self.stackedWidget.setCurrentIndex(
-                self.stackedWidget.currentIndex() - 1
-            )
-        )
+        self.goToKafedraButton.clicked.connect(self._open_kafedra)
+        self.goToMainButton.clicked.connect(self._open_transfer)
         self.setWindowIcon(QtGui.QIcon(QtGui.QPixmap(":/icons/Images/logo.png")))
         self.setWindowTitle("Распределитель учебной нагрузки")
+        self._apply_academic_chrome()
+
+    def _apply_academic_chrome(self):
+        """Отступы, подписи разделов и зебра таблиц для учебной темы."""
+        root = self.centralwidget.layout()
+        root.setContentsMargins(20, 14, 20, 16)
+        root.setSpacing(12)
+        for name in ("label", "label_2", "label_4"):
+            title = self.findChild(QLabel, name)
+            if title is not None:
+                title.setProperty("role", "section")
+        for view in self.findChildren(QTableView):
+            view.setAlternatingRowColors(True)
+            header = view.horizontalHeader()
+            header.setHighlightSections(False)
+            header.setStretchLastSection(True)
+            model = view.model()
+            if model is not None and 0 < model.columnCount() <= 12:
+                header.setSectionResizeMode(QHeaderView.ResizeToContents)
+                header.setStretchLastSection(True)
+            view.verticalHeader().setHighlightSections(False)
+        self._mark_section(self.stackedWidget.currentIndex())
+        self.statusBar().showMessage("Распределение учебной нагрузки кафедры")
+
+    def _open_kafedra(self):
+        """Открывает страницу справочников кафедры."""
+        self.stackedWidget.setCurrentIndex(self.stackedWidget.currentIndex() + 1)
+        self._mark_section(self.stackedWidget.currentIndex())
+
+    def _open_transfer(self):
+        """Открывает страницу распределения часов."""
+        self.stackedWidget.setCurrentIndex(self.stackedWidget.currentIndex() - 1)
+        self._mark_section(self.stackedWidget.currentIndex())
+
+    def _mark_section(self, index):
+        """Подсвечивает кнопку открытой страницы."""
+        self.goToMainButton.setProperty("active", index == 0)
+        self.goToKafedraButton.setProperty("active", index == 1)
+        for button in (self.goToMainButton, self.goToKafedraButton):
+            button.style().unpolish(button)
+            button.style().polish(button)
+            button.update()
 
     # Настройки
     def open_settings(self):
@@ -484,31 +529,34 @@ class MainWindow(HourTransfer, KafedraRecords, QMainWindow):
         excel.write_nagruzka(workdata, fname)
 
 
-def toggle_stylesheet(path):
-    """Toggle stylesheet."""
-    """
-    Toggle the stylesheet to use the desired path in the Qt resource
-    system (prefixed by `:/`) or generically (a path to a file on
-    system).
-    """
+def apply_stylesheet(path):
+    """Подключает тему: ресурс Qt (`:/`) или файл на диске."""
     app = QApplication.instance()
     if app is None:
         raise RuntimeError("Qt application not found")
     file = QFile(path)
-    file.open(QFile.ReadOnly | QFile.Text)
+    if not file.open(QFile.ReadOnly | QFile.Text):
+        return
     stream = QTextStream(file)
+    stream.setCodec("UTF-8")
     app.setStyleSheet(stream.readAll())
+    file.close()
 
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
+    app.setStyle("Fusion")
+    app.setFont(QtGui.QFont("Segoe UI", 10))
     mainwindow = MainWindow()
     mainwindow.actionDark.triggered.connect(
-        lambda: toggle_stylesheet(":/dark/stylesheet.qss")
+        lambda: apply_stylesheet(":/dark/stylesheet.qss")
     )
     mainwindow.actionLight.triggered.connect(
-        lambda: toggle_stylesheet(":/light/stylesheet.qss")
+        lambda: apply_stylesheet(":/light/stylesheet.qss")
     )
-    mainwindow.actionDefault.triggered.connect(lambda: app.setStyleSheet(""))
+    mainwindow.actionDefault.triggered.connect(
+        lambda: apply_stylesheet(ACADEMIC_THEME)
+    )
+    apply_stylesheet(ACADEMIC_THEME)
     mainwindow.show()
     app.exec_()

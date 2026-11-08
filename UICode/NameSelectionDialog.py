@@ -13,18 +13,19 @@ class NameSelectionDialog(QDialog):
         self.selected_item = None
         self.setWindowTitle("Выбор аспиранта")
         layout = QVBoxLayout()
-        label = QLabel("Выберите аспиранта: ")
-        label.setStyleSheet("font-size: 18px;")
+        layout.setContentsMargins(20, 18, 20, 18)
+        layout.setSpacing(10)
+        label = QLabel("Выберите аспиранта")
+        label.setProperty("role", "section")
         layout.addWidget(label)
         self.buttons = []
         for item in item_list:
             button = QRadioButton(item)
-            button.setStyleSheet("font-size: 16px;")
             button.toggled.connect(self.on_button_toggled)
             layout.addWidget(button)
             self.buttons.append(button)
         ok_button = QPushButton("ОК")
-        ok_button.setStyleSheet("font-size: 16px;")
+        ok_button.setObjectName("confirmButton")
         ok_button.clicked.connect(self.accept)
         layout.addWidget(ok_button)
         self.setLayout(layout)
