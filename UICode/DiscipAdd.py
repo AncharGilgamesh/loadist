@@ -29,9 +29,11 @@ class DisciplineAdd(QDialog):
         """func."""
         code = self.codeComboBox.currentText()
         name = self.disciplineTextEdit.toPlainText()
-        if not name:
+        if not name.strip():
             QMessageBox.warning(self, 'Ошибка', 'Введите название дисциплины')
+            return
         self.data_signal.emit(code, name)
+        self.accept()
 
     def set_codes(self, model):
         """func."""

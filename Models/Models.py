@@ -2,6 +2,7 @@
 
 from PyQt5.QtCore import QAbstractTableModel, Qt, QModelIndex, QVariant,\
       QAbstractListModel
+from PyQt5.QtWidgets import QMessageBox
 import Models.DataHandler as DH
 
 
@@ -109,9 +110,15 @@ class MyModel(BasicTableModel):
         if role == Qt.EditRole:
             # print('Получаем копию изначальной строки')
             # Копия изначальной строки
-            if float(value) < 0:
+            number, error = DH.parse_non_negative_number(value)
+            if error:
+                QMessageBox.warning(None, "Ошибка", error)
                 return False
-            if float(value) > float(self._data[index.row()][index.column()]):
+            try:
+                current = float(self._data[index.row()][index.column()])
+            except (TypeError, ValueError):
+                return False
+            if number > current:
                 return False
             row_copy = self._data[index.row()].copy()
             # print('--------------------------------------2')
@@ -128,13 +135,13 @@ class MyModel(BasicTableModel):
             else:
                 self._edited_cells[index.row()] = {index.column()}
 
-            row_copy[index.column()] = float(value)
+            row_copy[index.column()] = number
             # print('--------------------------------------3')
             # print(row_copy)
             # print('--------------------------------------4')
             # print('тут просто выставляем в модель наше новое значение,
             #  которое было введено вручную')
-            self._data[index.row()][index.column()] = float(value)
+            self._data[index.row()][index.column()] = number
             # print('--------------------------------------6')
             # print(self._data)
             # Тут в модель посылаем сигнал, что у нас данные были изменены
@@ -273,7 +280,7 @@ class MyModel(BasicTableModel):
     def divide_row(self, row, data):
         """func."""
         new_data = []
-        row = self._ids[data[0]]
+        row = self._ids[str(data[0])]
         for i in range(self._startEditRow):
             new_data.append(self._data[row][i])
         for i in range(self._startEditRow, len(data)):
@@ -317,7 +324,7 @@ class MyModel(BasicTableModel):
     def special_divide_row(self, row, rep_data, dict_data, asp=None):
         """func."""
         new_data = []
-        row = self._ids[rep_data[0]]
+        row = self._ids[str(rep_data[0])]
         for i in range(self._startEditRow):
             new_data.append(self._data[row][i])
         for i in range(self._startEditRow, len(rep_data)):
@@ -372,7 +379,7 @@ class MyModel(BasicTableModel):
 
     def addId(self, id):
         """func."""
-        self._ids[id] = len(self._ids)
+        self._ids[str(id)] = len(self._ids)
 
     def getIds(self):
         """func."""

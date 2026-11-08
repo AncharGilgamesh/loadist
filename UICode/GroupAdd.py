@@ -4,6 +4,7 @@ from PyQt5.QtWidgets import QDialog, QMessageBox
 from PyQt5.QtCore import pyqtSignal
 from PyQt5.uic import loadUi
 from PyQt5 import QtGui
+import Models.DataHandler as DH
 import os
 
 
@@ -20,7 +21,6 @@ class GroupAdd(QDialog):
         """func."""
         super(GroupAdd, self).__init__()
         loadUi(UI_PATH, self)
-        self.prepodsComboBox.addItem('Мышкина И.Ю')
         self.addGroupButton.clicked.connect(self.on_ok)
         self.cancelButton.clicked.connect(lambda: self.close())
         self.aspirantCheckBox.toggled.connect(self.aspirantTracking)
@@ -51,8 +51,17 @@ class GroupAdd(QDialog):
         if not amountOfStudents:
             QMessageBox.warning(self, 'Ошибка', 'Введите количество студентов')
             return
-        self.data_signal.emit(groupNumber, amountOfStudents, curator, code)
+        amount, error = DH.parse_non_negative_number(
+            amountOfStudents, integer=True)
+        if error:
+            QMessageBox.warning(self, 'Ошибка', error)
+            return
+        self.data_signal.emit(groupNumber, str(amount), curator, code)
         self.accept()
+
+    def set_curators(self, model):
+        """func."""
+        self.prepodsComboBox.setModel(model)
 
     def set_codes(self, model):
         """func."""

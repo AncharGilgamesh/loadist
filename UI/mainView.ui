@@ -867,6 +867,7 @@
     <addaction name="loadDataAction"/>
     <addaction name="saveNagrAction"/>
     <addaction name="savePrepodNagrAction"/>
+    <addaction name="saveAllPrepodNagrAction"/>
     <addaction name="separator"/>
     <addaction name="settingsAction"/>
     <addaction name="exitAction"/>
@@ -917,6 +918,11 @@
   <action name="savePrepodNagrAction">
    <property name="text">
     <string>Сохранить нагрузку преподавателя</string>
+   </property>
+  </action>
+  <action name="saveAllPrepodNagrAction">
+   <property name="text">
+    <string>Сохранить нагрузку всех преподавателей</string>
    </property>
   </action>
   <action name="settingsAction">

@@ -6,7 +6,19 @@ import Models.SqlHandler as SQH
 import re
 
 
-def makeNumberable(dataIn, startCol=8):
+def parse_non_negative_number(text, integer=False):
+    """func."""
+    raw = str(text).strip().replace(",", ".")
+    if integer:
+        if not re.fullmatch(r"\d+", raw):
+            return None, "Введите целое неотрицательное число"
+        return int(raw), None
+    if not re.fullmatch(r"\d+(?:\.\d+)?", raw):
+        return None, "Введите неотрицательное число"
+    return float(raw), None
+
+
+def makeNumberable(dataIn, startCol=9):
     """func."""
     data = dataIn.copy()
     for r in range(len(data)):
@@ -35,13 +47,31 @@ def divideOsenVesna(data):
     osen = []
     vesna = []
     for row in data:
+        semester, error = _semester_number(row[semRow])
+        if error:
+            return None, None, error
         newRow = row[1:4] + [''] + row[4:7] + [''] + row[7:9] + ['']
         newRow += row[9:]
-        if int(row[semRow]) in osenSem:
+        if semester in osenSem:
             osen.append(newRow)
-        elif int(row[semRow]) in vesnaSem:
+        elif semester in vesnaSem:
             vesna.append(newRow)
-    return osen, vesna
+        else:
+            return None, None, "Семестр должен быть числом от 1 до 8"
+    return osen, vesna, None
+
+
+def _semester_number(value):
+    """func."""
+    if value is None or str(value).strip() == "":
+        return None, "Не указан семестр"
+    if isinstance(value, float) and value.is_integer():
+        text = str(int(value))
+    else:
+        text = str(value).strip().replace(",", ".")
+        if re.fullmatch(r"\d+\.0+", text):
+            text = text.split(".", 1)[0]
+    return parse_non_negative_number(text, integer=True)
 
 
 def data_comparsion(data, data_to_compare):
@@ -198,6 +228,16 @@ def get_prepod_info(tbl_id):
         sovmestitelstvo, stvkaDljnst
     ]
     return list_to_send
+
+
+def aspirant_name_from_cell(text):
+    """func."""
+    if not text or "Руководство аспирантом" not in str(text):
+        return None
+    names = extract_names(str(text))
+    if len(names) == 1:
+        return names[0]
+    return None
 
 
 def extract_names(string):

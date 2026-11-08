@@ -53,10 +53,6 @@ class ExcelHandler:
         """func."""
         self.sheet.cell(row=row, column=column, value=value)
 
-    def save_workbook(self):
-        """func."""
-        self.workbook.save(filename=self.filename)
-
     def read_rows_to_list(self):
         """
         func.
@@ -125,7 +121,7 @@ class ExcelHandler:
     def write_statistics(self, data, save_path):
         """func."""
         wb = Workbook()
-        sheet = wb.create_sheet()
+        sheet = wb.active
         self.fillSemestr(sheet, data, 5, 3)
         self.addBorders(sheet, 5, len(data) + 4, len(data[0]) + 2, 3)
         wb.save(save_path)
@@ -215,7 +211,7 @@ class ExcelHandler:
         osenRow = 0
         vesnaRow = 0
         itogoRow = 0
-        while True:
+        while i <= sheet.max_row:
             if sheet.cell(row=i, column=3).value == 'Осенний семестр':
                 osenRow = i
                 if insertOsen:
@@ -230,6 +226,16 @@ class ExcelHandler:
                 itogoRow = i
                 break
             i += 1
+        missing = []
+        if not osenRow:
+            missing.append("«Осенний семестр»")
+        if not vesnaRow:
+            missing.append("«Весенний семестр»")
+        if not itogoRow:
+            missing.append("«Итого за год»")
+        if missing:
+            raise ValueError(
+                "В шаблоне нет строки: " + ", ".join(missing))
         return osenRow, vesnaRow, itogoRow
 
     def fillSemestr(self, sheet, data, start_row, start_col):
@@ -306,20 +312,24 @@ class ExcelHandler:
             sheet['M3'] = 'Ученая степень: ' + prepod_info[2]
         # doljnost
         sheet['I3'] = 'Должность: ' + prepod_info[3]
-        # stavka
-        if not prepod_info[5]:
+        # L4 — ставка у «Основная работа», R4 — совместительство.
+        # AA3 — «Нагрузка на 1 ставку», AA4 — единственная ячейка часов
+        # у подписи «Почасовка (договора)». В неё пишется одно значение.
+        if _filled(prepod_info[4]):
             sheet['L4'] = prepod_info[4]
-        # pochasovka
-        if not prepod_info[6]:
-            sheet['AA4'] = prepod_info[5]
-        # pochasovka v osn(dogovora)
-        if not prepod_info[5]:
-            sheet['AA4'] = prepod_info[6]
-        # sovmestitelstvo
-        sheet['R4'] = prepod_info[7]
-        # stavka po doljnosti
-        if not prepod_info[5]:
+        if _filled(prepod_info[7]):
+            sheet['R4'] = prepod_info[7]
+        if _filled(prepod_info[8]):
             sheet['AA3'] = prepod_info[8]
+        if _filled(prepod_info[6]):
+            sheet['AA4'] = prepod_info[6]
+        elif _filled(prepod_info[5]):
+            sheet['AA4'] = prepod_info[5]
+
+
+def _filled(value):
+    """func."""
+    return value not in (None, "")
 
 
 class XlsHandler:

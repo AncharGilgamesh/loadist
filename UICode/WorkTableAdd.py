@@ -4,6 +4,7 @@ from PyQt5.QtCore import pyqtSignal
 from PyQt5.QtWidgets import QDialog, QMessageBox
 from PyQt5.uic import loadUi
 from PyQt5 import QtGui
+import Models.DataHandler as DH
 import Models.SqlHandler as SQH
 import os
 
@@ -43,7 +44,6 @@ class CreateWorkTable(QDialog):
 
     def on_ok(self):
         """func."""
-        list_to_send = []
         total = 0
         fio = self.fioComboBox.currentText()
         mainstavk = self.stavkaLineEdit.text()
@@ -52,28 +52,36 @@ class CreateWorkTable(QDialog):
         pochas = self.pochLineEdit.text()
         stvkaDljnst, prepod_id = self.get_stvkaDljnst()
         if self.usualRadioButton.isChecked():
-            type = 'Обычная'
-            if not mainstavk:
-                QMessageBox.warning(self, 'Ошибка', 'Введите ставку')
+            table_type = 'Обычная'
+            rate, error = self._required_number(mainstavk, 'Введите ставку')
+            if error:
+                QMessageBox.warning(self, 'Ошибка', error)
                 return
-            total += float(mainstavk) * float(stvkaDljnst)
-            if pochasOsn:
-                total += float(pochasOsn)
-            if sovmest:
-                total += float(sovmest) * float(stvkaDljnst)
+            total += rate * float(stvkaDljnst)
+            extra, error = self._optional_number(pochasOsn)
+            if error:
+                QMessageBox.warning(self, 'Ошибка', error)
+                return
+            total += extra
+            extra, error = self._optional_number(sovmest)
+            if error:
+                QMessageBox.warning(self, 'Ошибка', error)
+                return
+            total += extra * float(stvkaDljnst)
         elif self.pochasRadioButton.isChecked():
-            type = 'Почасовая'
-            if not pochas:
-                QMessageBox.warning(self, 'Ошибка', 'Введите часы')
+            table_type = 'Почасовая'
+            hours, error = self._required_number(pochas, 'Введите часы')
+            if error:
+                QMessageBox.warning(self, 'Ошибка', error)
                 return
-            total = float(pochas)
+            total = hours
         else:
             QMessageBox.warning(self, 'Ошибка', 'Выберите тип таблицы')
             return
         list_to_send = [
             fio,
             prepod_id,
-            type,
+            table_type,
             mainstavk,
             pochas,
             pochasOsn,
@@ -82,6 +90,18 @@ class CreateWorkTable(QDialog):
         ]
         self.data_signal.emit(list_to_send)
         self.accept()
+
+    def _required_number(self, text, empty_message):
+        """func."""
+        if not str(text).strip():
+            return None, empty_message
+        return DH.parse_non_negative_number(text)
+
+    def _optional_number(self, text):
+        """func."""
+        if not str(text).strip():
+            return 0, None
+        return DH.parse_non_negative_number(text)
 
     def pchsPlusTracking(self):
         """func."""

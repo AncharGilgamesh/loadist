@@ -146,6 +146,7 @@ class MainWindow(QMainWindow):
         self.loadDataAction.triggered.connect(self.loadData)
         self.saveNagrAction.triggered.connect(self.save_obsh_nagruzka)
         self.savePrepodNagrAction.triggered.connect(self.uploadData)
+        self.saveAllPrepodNagrAction.triggered.connect(self.upload_all_teachers)
         self.settingsAction.triggered.connect(self.open_settings)
         self.exitAction.triggered.connect(lambda: self.close())
         # Навигация
@@ -185,16 +186,18 @@ class MainWindow(QMainWindow):
                 присвоено значение из таблицы
                 """
                 current_row = []
-                selected_item = None
                 for col in range(9):
                     current_row.append(str(self.model1.index(row, col).data()))
-                if 'Руководство аспирантом' in self.model1.index(row, 6).data():
-                    names = DH.extract_names(self.model1.index(row, 6).data())
+                discipline = self.model1.index(row, 6).data()
+                if discipline and 'Руководство аспирантом' in discipline:
+                    names = DH.extract_names(discipline)
                     dialog = NameSelectionDialog(names)
-                    if dialog.exec_() == QDialog.Accepted:
-                        selected_item = dialog.get_selected_item()
-                        current_row[6] = 'Руководство аспирантом (' + selected_item + ')'
-                        current_row[8] = int(current_row[8]) - 1
+                    if dialog.exec_() != QDialog.Accepted:
+                        return
+                    selected_item = dialog.get_selected_item()
+                    current_row[6] = (
+                        'Руководство аспирантом (' + selected_item + ')')
+                    current_row[8] = int(current_row[8]) - 1
                 for col in range(9, self.model1.columnCount()):
                     if col == column:
                         current_row.append(str(self.model1.index(row, col).data()))
@@ -240,7 +243,7 @@ class MainWindow(QMainWindow):
                 for i in v:
                     self.model1.get_back_not_selected_edited_cols(k, i)
         # в Edited хранятся те клетки, которые отредакитрованы, но не выделены
-        self.replace_rows(row_data, selected_item, edited)
+        self.replace_rows(row_data, edited)
         self.model1.clear_edited_dict()
         # self.compare_selection_and_edit(
         #     self.model1, edited_cells, selected_indexes)
@@ -317,7 +320,7 @@ class MainWindow(QMainWindow):
             self.model1.insertRow(int(k), v)
         self.model1.updateIds()
 
-    def replace_rows(self, rep_data, asp, edited):
+    def replace_rows(self, rep_data, edited):
         """func."""
         """
         Получает разницу и меняет строки.
@@ -329,6 +332,7 @@ class MainWindow(QMainWindow):
         edited_keys = edited.keys()
         list_of_keys = data_dict.keys()
         for i in rep_data.keys():
+            asp = DH.aspirant_name_from_cell(rep_data[i][6])
             if i in list_of_keys and i not in edited_keys:
                 self.model1.divide_changed_row(i, data_dict[i], asp)
             elif i in list_of_keys and i in edited_keys:
@@ -337,13 +341,14 @@ class MainWindow(QMainWindow):
             else:
                 self.model1.divide_row(i, rep_data[i])
 
-    def replace_rows_outserting(self, rep_data, asp, edited):
+    def replace_rows_outserting(self, rep_data, edited):
         """func."""
         model = self._rtblModels[self.current_work_table_id()]
         data_dict = model.get_diff()
         list_of_keys = data_dict.keys()
         edited_keys = edited.keys()
         for i in rep_data.keys():
+            asp = DH.aspirant_name_from_cell(rep_data[i][6])
             if i in list_of_keys and i not in edited_keys:
                 model.divide_changed_row(i, data_dict[i], asp)
             elif i in list_of_keys and i in edited_keys:
@@ -380,16 +385,18 @@ class MainWindow(QMainWindow):
                 присвоено значение из таблицы
                 """
                 current_row = []
-                selected_item = None
                 for col in range(9):
                     current_row.append(str(model.index(row, col).data()))
-                if 'Руководство аспирантом' in model.index(row, 6).data():
-                    names = DH.extract_names(model.index(row, 6).data())
+                discipline = model.index(row, 6).data()
+                if discipline and 'Руководство аспирантом' in discipline:
+                    names = DH.extract_names(discipline)
                     dialog = NameSelectionDialog(names)
-                    if dialog.exec_() == QDialog.Accepted:
-                        selected_item = dialog.get_selected_item()
-                        current_row[6] = 'Руководство аспирантом (' + selected_item + ')'
-                        current_row[8] = int(current_row[8]) - 1
+                    if dialog.exec_() != QDialog.Accepted:
+                        return
+                    selected_item = dialog.get_selected_item()
+                    current_row[6] = (
+                        'Руководство аспирантом (' + selected_item + ')')
+                    current_row[8] = int(current_row[8]) - 1
                 for col in range(9, model.columnCount()):
                     if col == column:
                         current_row.append(str(model.index(row, col).data()))
@@ -422,7 +429,7 @@ class MainWindow(QMainWindow):
             for k, v in edited.items():
                 for i in v:
                     model.get_back_not_selected_edited_cols(k, i)
-        self.replace_rows_outserting(row_data, selected_item, edited)
+        self.replace_rows_outserting(row_data, edited)
         model.clear_edited_dict()
         self.rightTableView.reset()
         # Список для передачи в соседнюю таблицу
@@ -786,7 +793,7 @@ class MainWindow(QMainWindow):
         """func."""
         data_comparison = self.nap_pod_model.get_col_by_name('Код')
         if DH.data_comparsion(data_comparison, code):
-            QMessageBox.warning(self, 'Ошибка', 'Группа уже есть в таблице')
+            QMessageBox.warning(self, 'Ошибка', 'Такое направление уже есть')
             return
         list_to_insert = [code, name]
         self.nap_pod_model.insertRow(0, list_to_insert)
@@ -796,6 +803,7 @@ class MainWindow(QMainWindow):
         """Open groups dialog window."""
         self.addGroup = GroupAdd()
         self.addGroup.set_codes(self.nap_code_model)
+        self.addGroup.set_curators(self._teacher_names_model)
         self.addGroup.data_signal.connect(self.add_group)
         self.addGroup.exec_()
 
@@ -814,7 +822,7 @@ class MainWindow(QMainWindow):
         ]
         # self.kafedraModel.insertRow(0, list_to_insert)
         DH.kafedra_id_add(self.kafedraModel, 'id', list_to_insert)
-        self._groups_model = MyListModel(data_comprasion)
+        self.update_groups_without_aspirants()
 
     def updateKafedraGroups(self):
         """Update groups."""
@@ -958,23 +966,26 @@ class MainWindow(QMainWindow):
         ]
         old_excel = ['.xls']
         file_extension = os.path.splitext(fname)[-1].lower()
+        load_error = (
+            "Не удалось загрузить файл. Проверьте, что это книга Excel "
+            "по шаблону и что в настройках есть строка границ чтения."
+        )
         try:
             if file_extension in new_excel:
                 excel = ExcelHandler(fname)
                 excel.open_workbook()
                 excel.get_sheet_by_name('нагрузка кафедры')
                 self._header, self._data = excel.read_rows_to_list()
-            if file_extension in old_excel:
+            elif file_extension in old_excel:
                 excel = XlsHandler(fname)
                 excel.open_workbook()
-                excel.get_nagruzka_sheet()
+                if excel.get_nagruzka_sheet() is None:
+                    raise KeyError("sheet")
                 self._header, self._data = excel.read_rows_to_list()
-        except KeyError:
-            QMessageBox.warning(
-                self,
-                'Ошибка',
-                'Что-то пошло не так.\
-                  \nВозможно загружаемый файл не соответствует шаблону.')
+            else:
+                raise ValueError("extension")
+        except Exception:
+            QMessageBox.warning(self, "Ошибка", load_error)
             return
         self.addIds(self._data)
         self.model1 = MyModel(self._data, self._header)
@@ -998,12 +1009,42 @@ class MainWindow(QMainWindow):
         difference = table_limit - table_sum
         return difference
 
+    def _hours_text(self, value):
+        """func."""
+        number = float(value)
+        if number.is_integer():
+            return str(int(number))
+        return str(number)
+
+    def _workbook_name(self, tbl_id):
+        """func."""
+        label = self._prepod_labels.get(tbl_id, str(tbl_id))
+        cleaned = "".join(
+            ch for ch in label if ch not in '\\/:*?"<>|'
+        ).strip(" .")
+        if not cleaned:
+            cleaned = str(tbl_id)
+        return cleaned + ".xlsx"
+
     def check_lower_limit_message(self):
         """Check for hours limit."""
+        difference = self.check_lower_limit()
+        if difference == 0:
+            return True
+        label = self._prepod_labels.get(self.current_work_table_id(), "")
+        if difference > 0:
+            text = (
+                f"У преподавателя {label} недобор: часов меньше лимита на "
+                f"{self._hours_text(difference)}."
+            )
+        else:
+            text = (
+                f"У преподавателя {label} превышение: часов больше лимита на "
+                f"{self._hours_text(abs(difference))}."
+            )
         message_box = QMessageBox()
         message_box.setIcon(QMessageBox.Question)
-        message_box.setText(
-            "Часы работы в таблице меньше, чем нагрузка преподавателя")
+        message_box.setText(text)
         message_box.setWindowTitle("Хотите продолжить?")
         message_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
         message_box.setDefaultButton(QMessageBox.No)
@@ -1011,6 +1052,21 @@ class MainWindow(QMainWindow):
         if result == QMessageBox.Yes:
             return True
         return False
+
+    def export_teacher_workbook(self, tbl_id, path):
+        """Сохраняет план одного преподавателя. Возвращает текст ошибки."""
+        data = self._rtblModels[tbl_id].get_data()
+        workdata = DH.makeNumberable(data.copy())
+        osen, vesna, error = DH.divideOsenVesna(workdata)
+        if error:
+            return error
+        excel = ExcelHandler()
+        try:
+            excel.writeRows(
+                osen, vesna, path, self._prepods[tbl_id].get_tbl_id())
+        except ValueError as exc:
+            return str(exc)
+        return None
 
     def uploadData(self):
         """Upload data."""
@@ -1023,20 +1079,58 @@ class MainWindow(QMainWindow):
             if not self.check_lower_limit_message():
                 return
         tbl_id = self.current_work_table_id()
-        data = self._rtblModels[tbl_id].get_data()
-        workdata = DH.makeNumberable(data.copy())
-        osen, vesna = DH.divideOsenVesna(workdata)
-        # fname, _ = QFileDialog.getOpenFileName(
-        #     self, "Choose  save file", "*", "*.xlsx")
         options = QFileDialog.Options()
         fname, _ = QFileDialog.getSaveFileName(
             self,
             "Сохранить файл", "", "Excel файлы (*.xlsx)", options=options)
         if not fname:
             return
-        excel = ExcelHandler()
-        tchr_id = self.get_prepod_id()
-        excel.writeRows(osen, vesna, fname, tchr_id)
+        error = self.export_teacher_workbook(tbl_id, fname)
+        if error:
+            QMessageBox.warning(self, "Ошибка", error)
+
+    def upload_all_teachers(self):
+        """Выгружает план каждого преподавателя в выбранную папку."""
+        if not self._data_loaded:
+            QMessageBox.warning(
+                self, "Ошибка", "Отсутствуют данные для выгрузки")
+            return
+        if not self._prepods:
+            QMessageBox.warning(
+                self, "Ошибка", "В программе отсутствуют рабочие таблицы")
+            return
+        mismatches = []
+        for tbl_id, teacher in self._prepods.items():
+            table_sum = sum(self._rtblModels[tbl_id].getAllColSum())
+            try:
+                same = float(table_sum) == float(teacher.getTotalTime())
+            except (TypeError, ValueError):
+                same = False
+            if not same:
+                mismatches.append(
+                    self._prepod_labels.get(tbl_id, str(tbl_id)))
+        if mismatches:
+            answer = QMessageBox.question(
+                self,
+                "Хотите продолжить?",
+                "Сумма часов не равна лимиту:\n"
+                + "\n".join(mismatches)
+                + "\n\nПродолжить?",
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.No,
+            )
+            if answer != QMessageBox.Yes:
+                return
+        directory = QFileDialog.getExistingDirectory(self, "Выберите папку")
+        if not directory:
+            return
+        for tbl_id in self._prepods:
+            path = os.path.join(directory, self._workbook_name(tbl_id))
+            error = self.export_teacher_workbook(tbl_id, path)
+            if error:
+                label = self._prepod_labels.get(tbl_id, str(tbl_id))
+                QMessageBox.warning(self, "Ошибка", f"{label}: {error}")
+                return
 
     def get_prepod_id(self):
         """Get prepod id."""

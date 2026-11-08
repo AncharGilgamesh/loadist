@@ -29,10 +29,12 @@ class NapPodAdd(QDialog):
         """func."""
         code = self.codeLineEdit.text()
         name = self.nameTextEdit.toPlainText()
-        if not code:
+        if not code.strip():
             QMessageBox.warning(self, 'Ошибка', 'Добавьте код направления')
-        if not name:
+            return
+        if not name.strip():
             QMessageBox.warning(
                 self, 'Ошибка', 'Добавьте наименование направления')
+            return
         self.data_signal.emit(code, name)
         self.accept()

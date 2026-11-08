@@ -4,6 +4,7 @@ from PyQt5.QtWidgets import QDialog, QLineEdit, QVBoxLayout, QLabel,\
       QHBoxLayout, QPushButton, QMessageBox
 from PyQt5.QtCore import pyqtSignal
 from PyQt5 import QtGui
+import Models.DataHandler as DH
 
 
 class DoljnostAdd(QDialog):
@@ -38,11 +39,13 @@ class DoljnostAdd(QDialog):
         """func."""
         if not self.lineEdit1.text():
             QMessageBox.warning(self, "Error", "Пожалуйста, введите должность")
-        elif not self.lineEdit2.text():
+            return
+        if not self.lineEdit2.text():
             QMessageBox.warning(self, "Error", "Пожалуйста, введите ставку")
-        elif not self.lineEdit2.text().isdigit():
-            QMessageBox.warning(self, "Error", "Ставка должна быть числом")
-        else:
-            self.submitted.emit(
-                self.lineEdit1.text(), float(self.lineEdit2.text()))
-            self.accept()
+            return
+        rate, error = DH.parse_non_negative_number(self.lineEdit2.text())
+        if error:
+            QMessageBox.warning(self, "Error", error)
+            return
+        self.submitted.emit(self.lineEdit1.text(), rate)
+        self.accept()
