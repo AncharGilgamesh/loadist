@@ -5,12 +5,14 @@ import sqlite3
 
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-pathDb = os.path.join(BASE_DIR, '..', 'DB', 'nagruzka.db')
-SETTING_DB = os.path.join(BASE_DIR, '..', 'DB', 'settings.db')
+DB_DIR = os.path.join(BASE_DIR, '..', 'DB')
+pathDb = os.path.join(DB_DIR, 'nagruzka.db')
+SETTING_DB = os.path.join(DB_DIR, 'settings.db')
 
 
 def create_tables():
     """func."""
+    os.makedirs(DB_DIR, exist_ok=True)
     create_teachers_table()
     create_work_table()
     create_doljnosti_table()
@@ -18,6 +20,33 @@ def create_tables():
     create_discipline_table()
     create_nap_pod_table()
     create_settings_table()
+    ensure_default_settings()
+
+
+def ensure_default_settings():
+    """func."""
+    with sqlite3.connect(SETTING_DB) as con:
+        cur = con.cursor()
+        cur.execute("SELECT COUNT(*) FROM settings")
+        if cur.fetchone()[0] == 0:
+            cur.execute(
+                """
+                INSERT INTO settings (
+                start_year,
+                end_year,
+                otdel,
+                kafedra,
+                mag_lim,
+                baq_lim,
+                start_row,
+                end_row,
+                start_col,
+                end_col
+                ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (0, 0, "", "", 0, 0, 0, 0, 0, 0),
+            )
+            con.commit()
 
 
 # Для преддипломки

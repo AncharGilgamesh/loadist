@@ -4,3 +4,7 @@ Models/__pycache__/
 Resources/__pycache__/
 UICode/__pycache__/
 PLAN.md
+DB/*.db
+*.pyc
+.venv/
+.ruff_cache/
