@@ -10,6 +10,7 @@ from PyQt5.QtWidgets import (
     QApplication,
     QFileDialog,
     QGridLayout,
+    QHBoxLayout,
     QHeaderView,
     QLabel,
     QMainWindow,
@@ -17,6 +18,7 @@ from PyQt5.QtWidgets import (
     QPushButton,
     QSizePolicy,
     QTableView,
+    QVBoxLayout,
     QWidget,
 )
 from PyQt5.uic import loadUi
@@ -204,22 +206,19 @@ class MainWindow(HourTransfer, KafedraRecords, QMainWindow):
         self.groupsTableView.setColumnHidden(0, True)
         self._set_stretch(self.mainPage.layout(), self.leftTableView, 3)
         self._set_stretch(self.mainPage.layout(), self.rightTableView, 2)
-        self._set_stretch(self.KafedraPage.layout(), self.prepodsTabWidget, 3)
-        self._set_stretch(self.KafedraPage.layout(), self.disNapTabWidget, 2)
         self._mark_section(self.stackedWidget.currentIndex())
         self.statusBar().showMessage("Распределение учебной нагрузки кафедры")
 
     def _make_layout_responsive(self):
         """Даёт страницам и вкладкам занимать всё свободное место окна."""
         self._grid_transfer_toolbar()
-        self._stretch_button_rows()
+        self._merge_kafedra_catalogs()
         expanding = QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         for widget in (
             self.stackedWidget,
             self.mainPage,
             self.KafedraPage,
             self.prepodsTabWidget,
-            self.disNapTabWidget,
         ):
             widget.setSizePolicy(expanding)
             widget.setMinimumWidth(0)
@@ -227,14 +226,7 @@ class MainWindow(HourTransfer, KafedraRecords, QMainWindow):
         self.mainTeacherComboBox.setSizePolicy(
             QSizePolicy.Expanding, QSizePolicy.Fixed
         )
-        for tabs in (self.prepodsTabWidget, self.disNapTabWidget):
-            bar = tabs.tabBar()
-            bar.setExpanding(True)
-            bar.setUsesScrollButtons(True)
-            bar.setElideMode(Qt.ElideNone)
-            bar.setDocumentMode(True)
         self.prepodsTabWidget.currentChanged.connect(self._fit_visible_headers)
-        self.disNapTabWidget.currentChanged.connect(self._fit_visible_headers)
         self.stackedWidget.currentChanged.connect(self._fit_visible_headers)
 
     def _grid_transfer_toolbar(self):
@@ -269,40 +261,74 @@ class MainWindow(HourTransfer, KafedraRecords, QMainWindow):
         )
         for column, name in enumerate(names):
             button = found[name]
-            button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+            button.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed)
             grid.addWidget(button, 2, column)
-            grid.setColumnStretch(column, 1)
+        grid.setColumnStretch(len(names), 1)
         page_layout.insertLayout(0, grid)
 
-    def _stretch_button_rows(self):
-        """Растягивает ряды из кнопок по ширине страницы."""
-        pending = []
-        for widget in self.findChildren(QWidget):
-            layout = widget.layout()
-            if layout is not None:
-                pending.append(layout)
-        while pending:
-            layout = pending.pop()
-            buttons = []
-            spacers = []
-            for index in range(layout.count()):
-                item = layout.itemAt(index)
-                if isinstance(item.widget(), QPushButton):
-                    buttons.append(index)
-                elif item.spacerItem() is not None:
-                    spacers.append(index)
-                elif item.layout() is not None:
-                    pending.append(item.layout())
-            if len(buttons) < 3 or len(buttons) + len(spacers) != layout.count():
-                continue
-            for index in reversed(spacers):
-                layout.takeAt(index)
-            for index in range(layout.count()):
-                layout.itemAt(index).widget().setSizePolicy(
-                    QSizePolicy.Expanding, QSizePolicy.Fixed
-                )
-                layout.setStretch(index, 1)
-            layout.invalidate()
+    def _merge_kafedra_catalogs(self):
+        """Собирает справочники в один список, переключение ставит справа."""
+        target = self.prepodsTabWidget
+        source = self.disNapTabWidget
+        while source.count():
+            title = source.tabText(0)
+            page = source.widget(0)
+            source.removeTab(0)
+            target.addTab(page, title)
+        page_layout = self.KafedraPage.layout()
+        for index in range(page_layout.count() - 1, -1, -1):
+            item = page_layout.itemAt(index)
+            if item is not None and item.widget() is source:
+                page_layout.takeAt(index)
+                break
+        source.hide()
+        target.tabBar().hide()
+        nav = QWidget()
+        nav.setObjectName("kafedraNav")
+        nav.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Expanding)
+        nav_layout = QVBoxLayout(nav)
+        nav_layout.setContentsMargins(12, 0, 0, 0)
+        nav_layout.setSpacing(6)
+        self._kafedra_nav_buttons = []
+        for index in range(target.count()):
+            button = QPushButton(target.tabText(index))
+            button.setObjectName("kafedraNavButton")
+            button.setCheckable(True)
+            button.setAutoExclusive(True)
+            button.setCursor(Qt.PointingHandCursor)
+            button.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed)
+            button.clicked.connect(
+                lambda _checked, tab=index: target.setCurrentIndex(tab)
+            )
+            nav_layout.addWidget(button)
+            self._kafedra_nav_buttons.append(button)
+        nav_layout.addStretch(1)
+        row = QHBoxLayout()
+        row.setContentsMargins(0, 0, 0, 0)
+        row.setSpacing(8)
+        target_index = 0
+        for index in range(page_layout.count()):
+            item = page_layout.itemAt(index)
+            if item is not None and item.widget() is target:
+                target_index = index
+                break
+        page_layout.takeAt(target_index)
+        row.addWidget(target, 1)
+        row.addWidget(nav, 0)
+        page_layout.insertLayout(target_index, row)
+        page_layout.setStretch(target_index, 1)
+        target.currentChanged.connect(self._mark_kafedra_section)
+        self._mark_kafedra_section(target.currentIndex())
+
+    def _mark_kafedra_section(self, index):
+        """Подсвечивает кнопку открытого справочника."""
+        for button_index, button in enumerate(self._kafedra_nav_buttons):
+            active = button_index == index
+            button.setChecked(active)
+            button.setProperty("active", active)
+            button.style().unpolish(button)
+            button.style().polish(button)
+            button.update()
 
     def _fit_visible_headers(self, *_args):
         """Подгоняет колонки видимых таблиц под текущую ширину."""

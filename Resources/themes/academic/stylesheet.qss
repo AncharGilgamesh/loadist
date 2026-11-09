@@ -123,6 +123,33 @@ QPushButton#goToKafedraButton[active="true"]:hover {
     border-color: #2c5270;
 }
 
+QWidget#kafedraNav {
+    background: transparent;
+    border-left: 1px solid #d9d0c3;
+}
+
+QPushButton#kafedraNavButton {
+    background: transparent;
+    color: #1e3a4c;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    text-align: left;
+    padding: 6px 12px;
+    min-height: 28px;
+}
+
+QPushButton#kafedraNavButton:hover {
+    background-color: #f3e6d0;
+    border-color: transparent;
+}
+
+QPushButton#kafedraNavButton:checked,
+QPushButton#kafedraNavButton[active="true"] {
+    background-color: #1e3a4c;
+    color: #f7f3ea;
+    border: 1px solid #1e3a4c;
+}
+
 QPushButton#transferButton,
 QPushButton#loadButton,
 QPushButton#saveMainNagruzka,

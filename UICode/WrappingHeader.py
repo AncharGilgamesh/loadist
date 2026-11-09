@@ -71,13 +71,47 @@ class WrappingHeader(QHeaderView):
         self._pending = True
         QTimer.singleShot(0, self._fit_text)
 
+    def _wrap_header(self, text, width):
+        """Переносит по словам и делит только слово шире колонки."""
+        metrics = self.fontMetrics()
+        lines = []
+        current = ""
+        for word in str(text).split(" "):
+            for part in self._split_wide_word(word, width, metrics):
+                candidate = part if not current else current + " " + part
+                too_wide = metrics.horizontalAdvance(candidate) > width
+                if current and too_wide:
+                    lines.append(current)
+                    current = part
+                else:
+                    current = candidate
+        if current:
+            lines.append(current)
+        return "\n".join(lines)
+
+    def _split_wide_word(self, word, width, metrics):
+        if metrics.horizontalAdvance(word) <= width:
+            return [word]
+        parts = []
+        chunk = ""
+        for char in word:
+            trial = chunk + char
+            if chunk and metrics.horizontalAdvance(trial) > width:
+                parts.append(chunk)
+                chunk = char
+            else:
+                chunk = trial
+        if chunk:
+            parts.append(chunk)
+        return parts
+
     def _fit_text(self):
         """Поднимает строку заголовка, чтобы перенос поместился в колонку."""
         self._pending = False
         if self._fitting or self.model() is None:
             return
         self._fitting = True
-        flags = Qt.AlignCenter | Qt.TextWordWrap | Qt.TextWrapAnywhere
+        flags = Qt.AlignCenter
         height = self.fontMetrics().height() + 14
         for index in range(self.count()):
             if self.isSectionHidden(index):
@@ -86,8 +120,9 @@ class WrappingHeader(QHeaderView):
             if text is None:
                 continue
             width = max(self.sectionSize(index) - 16, 48)
+            prepared = self._wrap_header(text, width)
             bounds = self.fontMetrics().boundingRect(
-                0, 0, width, 500, flags, str(text)
+                0, 0, width, 500, flags, prepared
             )
             height = max(height, bounds.height() + 14)
         if self.height() != height:
@@ -112,9 +147,10 @@ class WrappingHeader(QHeaderView):
         if text is not None:
             painter.setPen(self._section_text_color())
             painter.setClipRect(rect)
+            width = max(rect.adjusted(6, 4, -6, -4).width(), 48)
             painter.drawText(
                 rect.adjusted(6, 4, -6, -4),
-                int(Qt.AlignCenter | Qt.TextWordWrap | Qt.TextWrapAnywhere),
-                str(text),
+                int(Qt.AlignCenter),
+                self._wrap_header(text, width),
             )
         painter.restore()
