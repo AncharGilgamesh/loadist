@@ -79,9 +79,19 @@ class KafedraRecords:
         self.addDoljnosti.show()
 
     def save_doljnost(self):
-        """func."""
+        """Сохраняет должности и возвращает прежние строки при повторе."""
         data_to_save = self._doljnosti_model.get_data()
-        SQH.insert_into_doljnost_table(data_to_save)
+        try:
+            SQH.insert_into_doljnost_table(data_to_save)
+        except sqlite3.IntegrityError:
+            QMessageBox.warning(
+                self,
+                "Ошибка",
+                "Не удалось сохранить должности. "
+                "Проверьте, что названия не повторяются.",
+            )
+            self.update_kafedra_doljnosti()
+            return
         self.update_dljnst_combo_model()
 
     def add_doljnosti(self, dljnst, stvka):
@@ -197,7 +207,15 @@ class KafedraRecords:
     def edit_teacher(self, data, id):
         """Сохраняет преподавателя и фамилию в его рабочих таблицах."""
         new_data = [id] + data
-        SQH.update_teachers(new_data)
+        try:
+            SQH.update_teachers(new_data)
+        except sqlite3.IntegrityError:
+            QMessageBox.warning(
+                self,
+                "Ошибка",
+                "Не удалось сохранить преподавателя. "
+                "Проверьте номер и связанные рабочие таблицы.",
+            )
         self.update_teacher_table()
         self.update_teacher_names()
         self.update_work_table()
@@ -270,9 +288,17 @@ class KafedraRecords:
         edit_work_table_window.exec_()
 
     def edit_work_table(self, data, id):
-        """func."""
+        """Сохраняет рабочую таблицу и читает её из базы при ошибке."""
         new_data = [id] + data
-        SQH.update_work_table(new_data)
+        try:
+            SQH.update_work_table(new_data)
+        except sqlite3.IntegrityError:
+            QMessageBox.warning(
+                self,
+                "Ошибка",
+                "Не удалось сохранить рабочую таблицу. "
+                "Проверьте номер таблицы и наличие преподавателя.",
+            )
         self.update_work_table()
 
     def check_for_del_ids(self):
@@ -302,9 +328,18 @@ class KafedraRecords:
         DH.kafedra_id_add(self._discipline_model, "id", list_to_insert)
 
     def save_discipline(self):
-        """func."""
+        """Сохраняет дисциплины и возвращает прежние строки при повторе."""
         data = self._discipline_model.get_data()
-        SQH.insert_into_disciplines_table(data)
+        try:
+            SQH.insert_into_disciplines_table(data)
+        except sqlite3.IntegrityError:
+            QMessageBox.warning(
+                self,
+                "Ошибка",
+                "Не удалось сохранить дисциплины. "
+                "Проверьте, что номера не повторяются.",
+            )
+            self.update_discipline()
 
     def update_discipline(self):
         """func."""
@@ -333,9 +368,19 @@ class KafedraRecords:
         self.nap_code_model = MyListModel(nap_codes)
 
     def save_nap_pod(self):
-        """func."""
+        """Сохраняет направления и возвращает прежние строки при повторе."""
         data_to_save = self.nap_pod_model.get_data()
-        SQH.insert_into_napPod_table(data_to_save)
+        try:
+            SQH.insert_into_napPod_table(data_to_save)
+        except sqlite3.IntegrityError:
+            QMessageBox.warning(
+                self,
+                "Ошибка",
+                "Не удалось сохранить направления. "
+                "Проверьте, что коды не повторяются.",
+            )
+            self.update_nap_pod()
+            return
         self.update_nap_code()
 
     def add_nap_pod(self, code, name):
@@ -381,7 +426,17 @@ class KafedraRecords:
         self._groups_model = MyListModel(data)
 
     def save_groups(self):
-        """Save all groups."""
+        """Сохраняет группы и возвращает прежние строки при повторе."""
         data_to_save = self.kafedraModel.get_data()
-        SQH.insert_into_groups_table(data_to_save)
+        try:
+            SQH.insert_into_groups_table(data_to_save)
+        except sqlite3.IntegrityError:
+            QMessageBox.warning(
+                self,
+                "Ошибка",
+                "Не удалось сохранить группы. "
+                "Проверьте, что номера не повторяются.",
+            )
+            self.updateKafedraGroups()
+            return
         self.update_groups_without_aspirants()

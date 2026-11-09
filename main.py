@@ -2,7 +2,10 @@
 
 import os
 import sys
+import zipfile
 
+import xlrd
+from openpyxl.utils.exceptions import InvalidFileException
 from PyQt5 import QtGui
 from PyQt5.QtCore import QFile, Qt, QTextStream
 from PyQt5.QtWidgets import (
@@ -21,6 +24,7 @@ from PyQt5.QtWidgets import (
     QWidget,
 )
 from PyQt5.uic import loadUi
+from xlrd.compdoc import CompDocError
 
 import Models.DataHandler as DH
 import Models.SqlHandler as SQH
@@ -516,11 +520,7 @@ class MainWindow(HourTransfer, KafedraRecords, QMainWindow):
                 self._rtblModels[tbl_id] = self._empty_right_model(tbl_id, header)
 
     def loadData(self):
-        """
-        Load data.
-
-        Функция для загрузки данных из эксель файла
-        """
+        """Загружает общую нагрузку из книги Excel."""
         if not self.mainTeacherComboBox.count():
             QMessageBox.warning(
                 self, "Ошибка", "В программе отсутствуют рабочие таблицы"
@@ -562,7 +562,16 @@ class MainWindow(HourTransfer, KafedraRecords, QMainWindow):
                 self._header, self._data = excel.read_rows_to_list()
             else:
                 raise ValueError("extension")
-        except Exception:
+        except (
+            OSError,
+            ValueError,
+            KeyError,
+            IndexError,
+            zipfile.BadZipFile,
+            InvalidFileException,
+            xlrd.XLRDError,
+            CompDocError,
+        ):
             QMessageBox.warning(self, "Ошибка", load_error)
             return
         self.addIds(self._data)
@@ -697,29 +706,35 @@ class MainWindow(HourTransfer, KafedraRecords, QMainWindow):
         directory = QFileDialog.getExistingDirectory(self, "Выберите папку")
         if not directory:
             return
+        failed = []
         for tbl_id in self._prepods:
             path = os.path.join(directory, self._workbook_name(tbl_id))
-            error = self.export_teacher_workbook(tbl_id, path)
+            try:
+                error = self.export_teacher_workbook(tbl_id, path)
+            except OSError as exc:
+                error = str(exc)
             if error:
                 label = self._prepod_labels.get(tbl_id, str(tbl_id))
-                QMessageBox.warning(self, "Ошибка", f"{label}: {error}")
-                return
+                failed.append(f"{label}: {error}")
+        if failed:
+            QMessageBox.warning(
+                self,
+                "Ошибка",
+                "Не записались планы:\n" + "\n".join(failed),
+            )
 
     def get_prepod_id(self):
         """Get prepod id."""
         return self._prepods[self.current_work_table_id()].get_tbl_id()
 
     def save_obsh_nagruzka(self):
-        """Save obs nagruzka."""
-        # Сохраняем общую нагрузку
+        """Сохраняет общую нагрузку и сообщает, если запись не удалась."""
         if not self._data_loaded:
             QMessageBox.warning(self, "Ошибка", "Общая нагрузка не загружена")
             return
         data = self.model1.get_data()
         workdata = DH.makeNumberable(data.copy())
         workdata = DH.make_obsh_nagruzka_for_save(workdata)
-        # fname, _ = QFileDialog.getOpenFileName(
-        #     self, "Choose  save file", "*", "*.xlsx")
         options = QFileDialog.Options()
         fname, _ = QFileDialog.getSaveFileName(
             self, "Сохранить файл", "", "Excel файлы (*.xlsx)", options=options
@@ -727,7 +742,21 @@ class MainWindow(HourTransfer, KafedraRecords, QMainWindow):
         if not fname:
             return
         excel = ExcelHandler()
-        excel.write_nagruzka(workdata, fname)
+        try:
+            excel.write_nagruzka(workdata, fname)
+        except FileNotFoundError:
+            QMessageBox.warning(
+                self,
+                "Ошибка",
+                "Не удалось записать общую нагрузку. "
+                "Не найден шаблон или путь к файлу.",
+            )
+        except OSError:
+            QMessageBox.warning(
+                self, "Ошибка", "Не удалось записать общую нагрузку."
+            )
+        except ValueError as exc:
+            QMessageBox.warning(self, "Ошибка", str(exc))
 
 
 def apply_stylesheet(path):
