@@ -589,6 +589,7 @@ class MainWindow(HourTransfer, KafedraRecords, QMainWindow):
         self.makeColumnsHidden(self.rightTableView)
         self.rightTableView.resizeColumnsToContents()
         self._data_loaded = True
+        self._show_statistics_sample()
 
     def check_lower_limit(self):
         """Check for lower limit."""
