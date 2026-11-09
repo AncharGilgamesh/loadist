@@ -139,14 +139,8 @@ class KafedraRecords:
         self.prepodsTableView.setModel(self._teacher_tbl_model)
 
     def add_teacher(self, data):
-        """func."""
-        row_count = self._teacher_tbl_model.rowCount()
-        ids = self._teacher_tbl_model.get_col_by_name("id")
-        if row_count in ids:
-            data.insert(0, row_count + len(ids))
-        else:
-            data.insert(0, row_count)
-        self._teacher_tbl_model.insertRow(row_count, data)
+        """Добавляет преподавателя с новым номером."""
+        DH.kafedra_id_add(self._teacher_tbl_model, "id", data)
 
     def save_teacher(self):
         """func."""
@@ -201,10 +195,14 @@ class KafedraRecords:
         editTeacher.show()
 
     def edit_teacher(self, data, id):
-        """func."""
+        """Сохраняет преподавателя и фамилию в его рабочих таблицах."""
         new_data = [id] + data
         SQH.update_teachers(new_data)
         self.update_teacher_table()
+        self.update_teacher_names()
+        self.update_work_table()
+        self.update_prepods_dict()
+        self.updatePrepodsComboBox()
 
     def open_work_create(self):
         """func."""
@@ -236,10 +234,8 @@ class KafedraRecords:
         self.workTableView.setModel(self._work_tbl_model)
 
     def add_work_table(self, data):
-        """func."""
-        row_count = self._work_tbl_model.rowCount()
-        data.insert(0, row_count)
-        self._work_tbl_model.insertRow(row_count, data)
+        """Добавляет рабочую таблицу с новым номером."""
+        DH.kafedra_id_add(self._work_tbl_model, "id", data)
 
     def save_work_table(self):
         """func."""

@@ -99,16 +99,26 @@ def make_obsh_nagruzka_for_save(data):
     return new_data
 
 
+def next_row_id(ids):
+    """Следующий номер — максимум существующих плюс один."""
+    numbers = []
+    for value in ids:
+        try:
+            numbers.append(int(value))
+        except (TypeError, ValueError):
+            continue
+    if not numbers:
+        return 0
+    return max(numbers) + 1
+
+
 def kafedra_id_add(model, id_col_name, data):
-    """func."""
-    """функция для добавления id в таблицы кафедр"""
-    row_count = model.rowCount()
+    """Добавляет строку с номером на единицу больше максимального."""
     ids = model.get_col_by_name(id_col_name)
-    if row_count in ids:
-        data.insert(0, row_count + len(ids))
-    else:
-        data.insert(0, row_count)
-    model.insertRow(row_count, data)
+    if not isinstance(ids, list):
+        ids = []
+    data.insert(0, next_row_id(ids))
+    model.insertRow(model.rowCount(), data)
 
 
 def return_fio_inicials(fio, type):

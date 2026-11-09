@@ -630,21 +630,29 @@ def get_row_where(col_condition, condition, tablename):
 
 
 def update_teachers(data):
-    """func."""
+    """Обновляет преподавателя и фамилию в его рабочих таблицах."""
+    teacher_id = data[0]
+    fio = data[1]
     with _connect(pathDb) as con:
         cur = con.cursor()
-        query = """
-        UPDATE teachers
-        SET teacher_id = ?,
-            fio = ?,
-            zvanie = ?,
-            stepen = ?,
-            doljnost = ?,
-            dipLimit = ?,
-            curator = ?
-        WHERE teacher_id = ?
-        """
-        cur.execute(query, list(data) + [data[0]])
+        cur.execute(
+            """
+            UPDATE teachers
+            SET teacher_id = ?,
+                fio = ?,
+                zvanie = ?,
+                stepen = ?,
+                doljnost = ?,
+                dipLimit = ?,
+                curator = ?
+            WHERE teacher_id = ?
+            """,
+            list(data) + [teacher_id],
+        )
+        cur.execute(
+            "UPDATE workTables SET fio = ? WHERE teacher_id = ?",
+            (fio, teacher_id),
+        )
         con.commit()
 
 
