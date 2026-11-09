@@ -401,26 +401,16 @@ class MainWindow(HourTransfer, KafedraRecords, QMainWindow):
 
     # Статистика
     def _show_statistics_sample(self):
-        """Ставит заголовки статистики и строки по рабочим таблицам."""
-        header, _empty = DH.get_settings_to_stats_table()
-        hour_count = len(header) - 3
-        rows = []
-        for row in SQH.select_all_from_table("workTables"):
-            kind = "Почасовая" if row[3] == "Почасовая" else "Обычная"
-            name = DH.return_fio_inicials(row[1], "Обычная")
-            total = int(round(float(row[-1] or 0)))
-            if total <= 0:
-                total = hour_count
-            base, extra = divmod(total, hour_count)
-            hours = [
-                base + (1 if index < extra else 0) for index in range(hour_count)
-            ]
-            rows.append([name, kind, *hours, total])
-        self._stat_model = KafedraModels(rows, header)
+        """Ставит заголовки статистики без часов."""
+        header, data = DH.get_settings_to_stats_table()
+        self._stat_model = KafedraModels(data, header)
         self.statisticTableView.setModel(self._stat_model)
 
     def set_statistics(self):
-        """func."""
+        """Считает статистику по загруженной общей нагрузке."""
+        if not self._data_loaded:
+            QMessageBox.warning(self, "Ошибка", "Считать нечего")
+            return
         header, data = DH.get_settings_to_stats_table()
         self._stat_model = KafedraModels(data, header)
         self.statisticTableView.setModel(self._stat_model)
@@ -434,7 +424,10 @@ class MainWindow(HourTransfer, KafedraRecords, QMainWindow):
         self.statisticTableView.resizeColumnsToContents()
 
     def save_statistics(self):
-        """func."""
+        """Сохраняет статистику, если общая нагрузка загружена."""
+        if not self._data_loaded:
+            QMessageBox.warning(self, "Ошибка", "Считать нечего")
+            return
         data = self._stat_model.get_data()
         header = self._stat_model.get_header()
         data.insert(0, header)

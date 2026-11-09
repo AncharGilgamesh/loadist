@@ -351,12 +351,12 @@ class XlsHandler:
         self._workbook = xlrd.open_workbook(self._filename)
 
     def get_nagruzka_sheet(self):
-        """func."""
+        """Возвращает лист нагрузки или None, если такого листа нет."""
         sheet_names = self._workbook.sheet_names()
         for sheet_name in sheet_names:
             if sheet_name in self._nagruzka_names:
                 self._sheet = self._workbook.sheet_by_name(sheet_name)
-                return
+                return self._sheet
         return None
 
     def read_rows_to_list(self):

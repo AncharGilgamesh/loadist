@@ -112,14 +112,18 @@ def kafedra_id_add(model, id_col_name, data):
 
 
 def return_fio_inicials(fio, type):
-    """func."""
+    """Сокращает ФИО из трёх слов, иначе возвращает исходную строку."""
+    if not isinstance(fio, str):
+        fio = "" if fio is None else str(fio)
     words = fio.strip().split()
+    if len(words) != 3:
+        return fio
     last_name, first_name, middle_name = words
     if type == "Обычная":
-        key = f"{last_name} {first_name[0]}.{middle_name[0]}."
+        return f"{last_name} {first_name[0]}.{middle_name[0]}."
     if type == "Почасовая":
-        key = f"{last_name} {first_name[0]}.{middle_name[0]}. (почас)"
-    return key
+        return f"{last_name} {first_name[0]}.{middle_name[0]}. (почас)"
+    return fio
 
 
 def update_prepods_dict(data, dict):
