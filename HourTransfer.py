@@ -56,11 +56,12 @@ class HourTransfer:
         return difference
 
     def get_back_basic(self):
-        """func."""
+        """Возвращает изменённые строки с большего номера к меньшему."""
         basic_data = self.model1.get_basic_rows()
-        for k, v in basic_data.items():
-            self.model1.removeRows(int(k), 1)
-            self.model1.insertRow(int(k), v)
+        for key in sorted(basic_data, key=int, reverse=True):
+            index = int(key)
+            self.model1.removeRows(index, 1)
+            self.model1.insertRow(index, basic_data[key].copy())
         self.model1.updateIds()
 
     def row_outserting(self):
