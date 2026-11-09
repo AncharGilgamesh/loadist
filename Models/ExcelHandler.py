@@ -209,26 +209,18 @@ class ExcelHandler:
         sheet.insert_rows(3, len(data) - 1)
 
     def findRows(self, sheet, insertOsen, insertVesna):
-        """func."""
-        i = 1
+        """Находит семестры в шаблоне и вставляет строки под заголовки."""
         osenRow = 0
         vesnaRow = 0
         itogoRow = 0
-        while i <= sheet.max_row:
-            if sheet.cell(row=i, column=3).value == "Осенний семестр":
-                osenRow = i
-                if insertOsen:
-                    # Добавляем строки только в том случае, если есть что
-                    #  добавить
-                    sheet.insert_rows(8, insertOsen)
-            if sheet.cell(row=i, column=3).value == "Весенний семестр":
-                vesnaRow = i
-                if insertVesna:
-                    sheet.insert_rows(vesnaRow + 1, insertVesna)
-            if sheet.cell(row=i, column=3).value == "Итого за год":
-                itogoRow = i
-                break
-            i += 1
+        for row in range(1, sheet.max_row + 1):
+            marker = sheet.cell(row=row, column=3).value
+            if marker == "Осенний семестр" and not osenRow:
+                osenRow = row
+            elif marker == "Весенний семестр" and not vesnaRow:
+                vesnaRow = row
+            elif marker == "Итого за год" and not itogoRow:
+                itogoRow = row
         missing = []
         if not osenRow:
             missing.append("«Осенний семестр»")
@@ -238,6 +230,16 @@ class ExcelHandler:
             missing.append("«Итого за год»")
         if missing:
             raise ValueError("В шаблоне нет строки: " + ", ".join(missing))
+        if insertVesna:
+            sheet.insert_rows(vesnaRow + 1, insertVesna)
+            if itogoRow > vesnaRow:
+                itogoRow += insertVesna
+        if insertOsen:
+            sheet.insert_rows(osenRow + 1, insertOsen)
+            if vesnaRow > osenRow:
+                vesnaRow += insertOsen
+            if itogoRow > osenRow:
+                itogoRow += insertOsen
         return osenRow, vesnaRow, itogoRow
 
     def fillSemestr(self, sheet, data, start_row, start_col):
