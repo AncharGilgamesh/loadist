@@ -11,4 +11,6 @@ DB/*.db
 .venv/
 .ruff_cache/
 .pytest_cache/
-__pycache__
+__pycache__/
+Example/db/
+Example/output/
