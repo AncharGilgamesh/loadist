@@ -428,13 +428,15 @@ class MainWindow(HourTransfer, KafedraRecords, QMainWindow):
         self.statisticTableView.resizeColumnsToContents()
 
     def save_statistics(self):
-        """Сохраняет статистику, если общая нагрузка загружена."""
+        """Сохраняет статистику, если она уже посчитана."""
         if not self._data_loaded:
             QMessageBox.warning(self, "Ошибка", "Считать нечего")
             return
-        data = self._stat_model.get_data()
-        header = self._stat_model.get_header()
-        data.insert(0, header)
+        rows = self._stat_model.get_data()
+        if not rows:
+            QMessageBox.warning(self, "Ошибка", "Сначала нажмите «Обновить»")
+            return
+        data = [self._stat_model.get_header(), *rows]
         options = QFileDialog.Options()
         fname, _ = QFileDialog.getSaveFileName(
             self, "Сохранить файл", "", "Excel файлы (*.xlsx)", options=options
