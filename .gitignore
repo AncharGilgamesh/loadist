@@ -5,6 +5,8 @@ Resources/__pycache__/
 UICode/__pycache__/
 PLAN.md
 DB/*.db
+!DB/nagruzka.db
+!DB/settings.db
 *.pyc
 .venv/
 .ruff_cache/
