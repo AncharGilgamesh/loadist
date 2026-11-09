@@ -9,7 +9,6 @@ from PyQt5.QtWidgets import (
     QAbstractItemView,
     QApplication,
     QFileDialog,
-    QGridLayout,
     QHBoxLayout,
     QHeaderView,
     QLabel,
@@ -78,6 +77,7 @@ class MainWindow(HourTransfer, KafedraRecords, QMainWindow):
         self.update_work_table()
         self.update_prepods_dict()
         self.updatePrepodsComboBox()
+        self._show_statistics_sample()
         self.transferButton.clicked.connect(self.row_inserting)
         self.transferBackButton.clicked.connect(self.row_outserting)
         self.loadButton.clicked.connect(self.loadData)
@@ -242,29 +242,37 @@ class MainWindow(HourTransfer, KafedraRecords, QMainWindow):
             if widget is not None:
                 found[widget.objectName()] = widget
         page_layout.takeAt(0)
-        grid = QGridLayout()
-        grid.setContentsMargins(0, 0, 0, 0)
-        grid.setHorizontalSpacing(8)
-        grid.setVerticalSpacing(8)
+        block = QVBoxLayout()
+        block.setContentsMargins(0, 0, 0, 0)
+        block.setSpacing(8)
         title = found["label"]
         title.setAlignment(Qt.AlignCenter)
-        grid.addWidget(title, 0, 0, 1, 5)
+        block.addWidget(title)
         combo = found["mainTeacherComboBox"]
-        combo.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        grid.addWidget(combo, 1, 0, 1, 5)
-        names = (
+        combo.setMinimumWidth(420)
+        combo.setMaximumWidth(560)
+        combo.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
+        combo_row = QHBoxLayout()
+        combo_row.addStretch(1)
+        combo_row.addWidget(combo)
+        combo_row.addStretch(1)
+        block.addLayout(combo_row)
+        buttons = QHBoxLayout()
+        buttons.setSpacing(8)
+        buttons.addStretch(1)
+        for name in (
             "transferButton",
             "transferBackButton",
             "uploadButton",
             "loadButton",
             "saveMainNagruzka",
-        )
-        for column, name in enumerate(names):
+        ):
             button = found[name]
             button.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed)
-            grid.addWidget(button, 2, column)
-        grid.setColumnStretch(len(names), 1)
-        page_layout.insertLayout(0, grid)
+            buttons.addWidget(button)
+        buttons.addStretch(1)
+        block.addLayout(buttons)
+        page_layout.insertLayout(0, block)
 
     def _merge_kafedra_catalogs(self):
         """Собирает справочники в один список, переключение ставит справа."""
@@ -338,6 +346,8 @@ class MainWindow(HourTransfer, KafedraRecords, QMainWindow):
             header = view.horizontalHeader()
             header.resizeSections()
             header._schedule_fit()
+            if view.wordWrap():
+                view.resizeRowsToContents()
 
     def showEvent(self, event):
         """Подгоняет колонки, когда окно уже получило размер."""
@@ -390,6 +400,25 @@ class MainWindow(HourTransfer, KafedraRecords, QMainWindow):
         settings.exec_()
 
     # Статистика
+    def _show_statistics_sample(self):
+        """Ставит заголовки статистики и строки по рабочим таблицам."""
+        header, _empty = DH.get_settings_to_stats_table()
+        hour_count = len(header) - 3
+        rows = []
+        for row in SQH.select_all_from_table("workTables"):
+            kind = "Почасовая" if row[3] == "Почасовая" else "Обычная"
+            name = DH.return_fio_inicials(row[1], "Обычная")
+            total = int(round(float(row[-1] or 0)))
+            if total <= 0:
+                total = hour_count
+            base, extra = divmod(total, hour_count)
+            hours = [
+                base + (1 if index < extra else 0) for index in range(hour_count)
+            ]
+            rows.append([name, kind, *hours, total])
+        self._stat_model = KafedraModels(rows, header)
+        self.statisticTableView.setModel(self._stat_model)
+
     def set_statistics(self):
         """func."""
         header, data = DH.get_settings_to_stats_table()
