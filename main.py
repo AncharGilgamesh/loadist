@@ -4,15 +4,20 @@ import os
 import sys
 
 from PyQt5 import QtGui
-from PyQt5.QtCore import QFile, QTextStream
+from PyQt5.QtCore import QFile, Qt, QTextStream
 from PyQt5.QtWidgets import (
+    QAbstractItemView,
     QApplication,
     QFileDialog,
+    QGridLayout,
     QHeaderView,
     QLabel,
     QMainWindow,
     QMessageBox,
+    QPushButton,
+    QSizePolicy,
     QTableView,
+    QWidget,
 )
 from PyQt5.uic import loadUi
 
@@ -25,6 +30,7 @@ from KafedraRecords import KafedraRecords
 from Models.ExcelHandler import ExcelHandler, XlsHandler
 from Models.Models import KafedraModels, MyListModel, MyModel
 from UICode.SettingsDialog import SettingsDialog
+from UICode.WrappingHeader import WrappingHeader
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 UI_PATH = os.path.join(BASE_DIR, "UI", "mainView.ui")
@@ -172,18 +178,165 @@ class MainWindow(HourTransfer, KafedraRecords, QMainWindow):
             title = self.findChild(QLabel, name)
             if title is not None:
                 title.setProperty("role", "section")
+        self._make_layout_responsive()
         for view in self.findChildren(QTableView):
             view.setAlternatingRowColors(True)
-            header = view.horizontalHeader()
-            header.setHighlightSections(False)
-            header.setStretchLastSection(True)
-            model = view.model()
-            if model is not None and 0 < model.columnCount() <= 12:
-                header.setSectionResizeMode(QHeaderView.ResizeToContents)
-                header.setStretchLastSection(True)
+            view.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+            view.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
+            view.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)
+            view.setHorizontalHeader(WrappingHeader(view))
+            self._give_extra_space(view)
             view.verticalHeader().setHighlightSections(False)
+            if view.objectName() in {
+                "prepodsTableView",
+                "workTableView",
+                "statisticTableView",
+                "disciplineTableView",
+                "napPodTableView",
+                "groupsTableView",
+                "doljnostiTableView",
+            }:
+                view.setWordWrap(True)
+                view.verticalHeader().setSectionResizeMode(
+                    QHeaderView.ResizeToContents
+                )
+        self.disciplineTableView.setColumnHidden(0, True)
+        self.groupsTableView.setColumnHidden(0, True)
+        self._set_stretch(self.mainPage.layout(), self.leftTableView, 3)
+        self._set_stretch(self.mainPage.layout(), self.rightTableView, 2)
+        self._set_stretch(self.KafedraPage.layout(), self.prepodsTabWidget, 3)
+        self._set_stretch(self.KafedraPage.layout(), self.disNapTabWidget, 2)
         self._mark_section(self.stackedWidget.currentIndex())
         self.statusBar().showMessage("Распределение учебной нагрузки кафедры")
+
+    def _make_layout_responsive(self):
+        """Даёт страницам и вкладкам занимать всё свободное место окна."""
+        self._grid_transfer_toolbar()
+        self._stretch_button_rows()
+        expanding = QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        for widget in (
+            self.stackedWidget,
+            self.mainPage,
+            self.KafedraPage,
+            self.prepodsTabWidget,
+            self.disNapTabWidget,
+        ):
+            widget.setSizePolicy(expanding)
+            widget.setMinimumWidth(0)
+            widget.setMaximumWidth(16777215)
+        self.mainTeacherComboBox.setSizePolicy(
+            QSizePolicy.Expanding, QSizePolicy.Fixed
+        )
+        for tabs in (self.prepodsTabWidget, self.disNapTabWidget):
+            bar = tabs.tabBar()
+            bar.setExpanding(True)
+            bar.setUsesScrollButtons(True)
+            bar.setElideMode(Qt.ElideNone)
+            bar.setDocumentMode(True)
+        self.prepodsTabWidget.currentChanged.connect(self._fit_visible_headers)
+        self.disNapTabWidget.currentChanged.connect(self._fit_visible_headers)
+        self.stackedWidget.currentChanged.connect(self._fit_visible_headers)
+
+    def _grid_transfer_toolbar(self):
+        """Ставит выбор преподавателя и кнопки переноса сеткой на всю ширину."""
+        page_layout = self.mainPage.layout()
+        old = page_layout.itemAt(0).layout()
+        if old is None:
+            return
+        found = {}
+        while old.count():
+            item = old.takeAt(0)
+            widget = item.widget()
+            if widget is not None:
+                found[widget.objectName()] = widget
+        page_layout.takeAt(0)
+        grid = QGridLayout()
+        grid.setContentsMargins(0, 0, 0, 0)
+        grid.setHorizontalSpacing(8)
+        grid.setVerticalSpacing(8)
+        title = found["label"]
+        title.setAlignment(Qt.AlignCenter)
+        grid.addWidget(title, 0, 0, 1, 5)
+        combo = found["mainTeacherComboBox"]
+        combo.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        grid.addWidget(combo, 1, 0, 1, 5)
+        names = (
+            "transferButton",
+            "transferBackButton",
+            "uploadButton",
+            "loadButton",
+            "saveMainNagruzka",
+        )
+        for column, name in enumerate(names):
+            button = found[name]
+            button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+            grid.addWidget(button, 2, column)
+            grid.setColumnStretch(column, 1)
+        page_layout.insertLayout(0, grid)
+
+    def _stretch_button_rows(self):
+        """Растягивает ряды из кнопок по ширине страницы."""
+        pending = []
+        for widget in self.findChildren(QWidget):
+            layout = widget.layout()
+            if layout is not None:
+                pending.append(layout)
+        while pending:
+            layout = pending.pop()
+            buttons = []
+            spacers = []
+            for index in range(layout.count()):
+                item = layout.itemAt(index)
+                if isinstance(item.widget(), QPushButton):
+                    buttons.append(index)
+                elif item.spacerItem() is not None:
+                    spacers.append(index)
+                elif item.layout() is not None:
+                    pending.append(item.layout())
+            if len(buttons) < 3 or len(buttons) + len(spacers) != layout.count():
+                continue
+            for index in reversed(spacers):
+                layout.takeAt(index)
+            for index in range(layout.count()):
+                layout.itemAt(index).widget().setSizePolicy(
+                    QSizePolicy.Expanding, QSizePolicy.Fixed
+                )
+                layout.setStretch(index, 1)
+            layout.invalidate()
+
+    def _fit_visible_headers(self, *_args):
+        """Подгоняет колонки видимых таблиц под текущую ширину."""
+        for view in self.findChildren(QTableView):
+            if not view.isVisible():
+                continue
+            header = view.horizontalHeader()
+            header.resizeSections()
+            header._schedule_fit()
+
+    def showEvent(self, event):
+        """Подгоняет колонки, когда окно уже получило размер."""
+        super().showEvent(event)
+        self._fit_visible_headers()
+
+    def _give_extra_space(self, widget):
+        """Отдаёт виджету лишнюю высоту и ширину родительских сеток."""
+        current = widget
+        while current is not None and current is not self:
+            parent = current.parentWidget()
+            layout = parent.layout() if parent is not None else None
+            if layout is not None:
+                self._set_stretch(layout, current, 1)
+            current = parent
+
+    def _set_stretch(self, layout, widget, stretch):
+        """Задаёт долю виджета в сетке родителя."""
+        if layout is None or not hasattr(layout, "setStretch"):
+            return
+        for index in range(layout.count()):
+            item = layout.itemAt(index)
+            if item is not None and item.widget() is widget:
+                layout.setStretch(index, stretch)
+                return
 
     def _open_kafedra(self):
         """Открывает страницу справочников кафедры."""
