@@ -1,4 +1,4 @@
-"""Проверки сохранения, запроса должности и разбора часов без окна Qt."""
+"""Проверки сохранения, номеров, фамилии и отката строк без окна Qt."""
 
 import sqlite3
 
@@ -45,6 +45,43 @@ def test_make_numberable_leaves_columns_before_nine():
     assert result[0][8] == "текст"
     assert result[0][9] == 12
     assert result[0][10] == 1.5
+
+
+def test_name_not_three_words_is_kept():
+    """Фамилия не из трёх слов возвращается как есть и не бросает исключение."""
+    assert DH.return_fio_inicials("Иванов Иван", "Обычная") == "Иванов Иван"
+    assert DH.return_fio_inicials("Иванов", "Почасовая") == "Иванов"
+    assert DH.return_fio_inicials("Иванов Иван Иванович", "Обычная") == "Иванов И.И."
+
+
+def test_next_row_id_is_one_past_the_maximum():
+    """Новый номер — максимум плюс один, а не число строк."""
+    ids = [1, 3, 4]
+    assert DH.next_row_id(ids) == 5
+    assert DH.next_row_id(ids) != len(ids)
+
+
+def test_duplicate_position_save_keeps_previous_rows(monkeypatch, tmp_path):
+    """Повтор должности откатывает запись, старые строки остаются."""
+    _use_temp_db(monkeypatch, tmp_path)
+    SQH.create_doljnosti_table()
+    original = [("доцент", 900.0), ("профессор", 1200.0)]
+    SQH.insert_into_doljnost_table(original)
+    duplicate = [("доцент", 900.0), ("доцент", 1.0)]
+    with pytest.raises(sqlite3.IntegrityError):
+        SQH.insert_into_doljnost_table(duplicate)
+    assert SQH.select_all_from_table("doljnosti") == original
+
+
+def test_restore_order_keeps_the_lower_row():
+    """Верхний индекс раньше нижнего не сдвигает вторую строку."""
+    rows = ["above", "upper", "neighbor", "lower"]
+    saved = {1: "upper-original", 3: "lower-original"}
+    assert DH.restore_row_order(saved) == [3, 1]
+    for index in DH.restore_row_order(saved):
+        del rows[index]
+        rows.insert(index, saved[index])
+    assert rows == ["above", "upper-original", "neighbor", "lower-original"]
 
 
 def test_empty_semester_returns_error():

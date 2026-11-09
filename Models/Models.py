@@ -208,12 +208,14 @@ class MyModel(BasicTableModel):
                 self.dataChanged.emit(index, index, [Qt.DisplayRole, Qt.EditRole])
 
     def get_back_not_selected_edited_cols(self, row, col):
-        """func."""
+        """Возвращает невыбранную ячейку, промах оставляет её как есть."""
         try:
-            self._changed_rows[row][col] = None
-            self._data[row][col] = self._basic_rows[row][col]
+            original = self._basic_rows[row][col]
+            bucket = self._changed_rows[row]
         except KeyError:
-            print("Ошибка")
+            return
+        bucket[col] = None
+        self._data[row][col] = original
         index = self.createIndex(row, col)
         self.dataChanged.emit(index, index, [Qt.DisplayRole, Qt.EditRole])
 

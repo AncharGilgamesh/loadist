@@ -576,23 +576,6 @@ def select_settings():
     return data
 
 
-def drop_table_by_name(tablename):
-    """func."""
-    table = _require_table(tablename)
-    with _connect(pathDb) as con:
-        cur = con.cursor()
-        cur.execute("DROP TABLE " + table)
-        con.commit()
-
-
-def drop_settings_table():
-    """func."""
-    with _connect(SETTING_DB) as con:
-        cur = con.cursor()
-        cur.execute("DROP TABLE settings")
-        con.commit()
-
-
 def get_col_where(col_to_get, col_condition, condition, tablename):
     """func."""
     """функция для получения ставки из таблицы должностей"""

@@ -99,6 +99,11 @@ def make_obsh_nagruzka_for_save(data):
     return new_data
 
 
+def restore_row_order(keys):
+    """Номера строк от большего к меньшему."""
+    return sorted(keys, key=int, reverse=True)
+
+
 def next_row_id(ids):
     """Следующий номер — максимум существующих плюс один."""
     numbers = []

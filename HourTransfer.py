@@ -58,7 +58,7 @@ class HourTransfer:
     def get_back_basic(self):
         """Возвращает изменённые строки с большего номера к меньшему."""
         basic_data = self.model1.get_basic_rows()
-        for key in sorted(basic_data, key=int, reverse=True):
+        for key in DH.restore_row_order(basic_data):
             index = int(key)
             self.model1.removeRows(index, 1)
             self.model1.insertRow(index, basic_data[key].copy())
