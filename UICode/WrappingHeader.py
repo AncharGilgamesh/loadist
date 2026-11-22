@@ -11,6 +11,7 @@ class WrappingHeader(QHeaderView):
         self._fitting = False
         self._pending = False
         self._text_color = None
+        self._section_color = QColor("#1e3a4c")
         self._max_lines = 2
         self.setHighlightSections(False)
         self.setStretchLastSection(False)
@@ -61,6 +62,7 @@ class WrappingHeader(QHeaderView):
             else:
                 best = QColor("#243038")
         self._text_color = best
+        self._section_color = background
         return best
 
     def _schedule_fit(self, *_args):
@@ -138,6 +140,9 @@ class WrappingHeader(QHeaderView):
         height = min(height, limit)
         if self.height() != height:
             self.setFixedHeight(height)
+            table = self.parentWidget()
+            if table is not None:
+                table.updateGeometries()
         self._fitting = False
         self.viewport().update()
 
@@ -145,6 +150,9 @@ class WrappingHeader(QHeaderView):
         if self.model() is None or not rect.isValid():
             return
         painter.save()
+        painter.setClipRect(rect)
+        self._section_text_color()
+        painter.fillRect(rect, self._section_color)
         option = QStyleOptionHeader()
         self.initStyleOption(option)
         option.rect = rect

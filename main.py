@@ -192,7 +192,11 @@ class MainWindow(HourTransfer, KafedraRecords, QMainWindow):
             view.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
             view.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)
             view.setHorizontalHeader(WrappingHeader(view))
-            if view.objectName() in ("leftTableView", "rightTableView"):
+            if view.objectName() in (
+                "leftTableView",
+                "rightTableView",
+                "statisticTableView",
+            ):
                 header = view.horizontalHeader()
                 header.setSectionResizeMode(QHeaderView.Interactive)
                 header.setStretchLastSection(False)
@@ -419,7 +423,26 @@ class MainWindow(HourTransfer, KafedraRecords, QMainWindow):
             DH.set_prepods_stats(
                 self._rtblModels, self._stat_model, self._prepod_labels
             )
-        self.statisticTableView.resizeColumnsToContents()
+        self._fit_statistic_columns()
+
+    def _fit_statistic_columns(self):
+        """func."""
+        view = self.statisticTableView
+        model = view.model()
+        if model is None:
+            return
+        header = view.horizontalHeader()
+        metrics = view.fontMetrics()
+        for column in range(model.columnCount()):
+            width = 0
+            title = model.headerData(column, Qt.Horizontal, Qt.DisplayRole)
+            if title is not None:
+                width = metrics.horizontalAdvance(str(title))
+            for row in range(model.rowCount()):
+                value = model.index(row, column).data()
+                if value is not None:
+                    width = max(width, metrics.horizontalAdvance(str(value)))
+            header.resizeSection(column, width + 28)
 
     def save_statistics(self):
         """func."""

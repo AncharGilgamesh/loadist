@@ -313,10 +313,14 @@ QTableView {
     font-size: 9pt;
 }
 
+QHeaderView {
+    background-color: #1e3a4c;
+}
+
 QHeaderView::section {
     background-color: #1e3a4c;
     color: #f7f3ea;
-    padding: 6px 8px;
+    padding: 0;
     border: none;
     border-right: 1px solid #2c5270;
     font-size: 9pt;
