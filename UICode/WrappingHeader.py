@@ -1,6 +1,6 @@
 from PyQt5.QtCore import QEvent, QRect, Qt, QTimer
 from PyQt5.QtGui import QColor, QImage, QPainter
-from PyQt5.QtWidgets import QHeaderView, QStyle, QStyleOptionHeader
+from PyQt5.QtWidgets import QHeaderView, QStyle, QStyleOptionHeader, QToolTip
 
 
 class WrappingHeader(QHeaderView):
@@ -11,6 +11,7 @@ class WrappingHeader(QHeaderView):
         self._fitting = False
         self._pending = False
         self._text_color = None
+        self._max_lines = 2
         self.setHighlightSections(False)
         self.setStretchLastSection(False)
         self.setSectionResizeMode(QHeaderView.Stretch)
@@ -71,9 +72,12 @@ class WrappingHeader(QHeaderView):
     def _wrap_header(self, text, width):
         """func."""
         metrics = self.fontMetrics()
+        raw = str(text)
+        if metrics.horizontalAdvance(raw) <= max(width, 1):
+            return raw
         lines = []
         current = ""
-        for word in str(text).split(" "):
+        for word in raw.split(" "):
             for part in self._split_wide_word(word, width, metrics):
                 candidate = part if not current else current + " " + part
                 too_wide = metrics.horizontalAdvance(candidate) > width
@@ -84,7 +88,15 @@ class WrappingHeader(QHeaderView):
                     current = candidate
         if current:
             lines.append(current)
-        return "\n".join(lines)
+        if len(lines) <= self._max_lines:
+            return "\n".join(lines)
+        visible = lines[: self._max_lines]
+        last = visible[-1].rstrip()
+        ellipsis = "…"
+        while last and metrics.horizontalAdvance(last + ellipsis) > width:
+            last = last[:-1].rstrip()
+        visible[-1] = (last + ellipsis) if last else ellipsis
+        return "\n".join(visible)
 
     def _split_wide_word(self, word, width, metrics):
         if metrics.horizontalAdvance(word) <= width:
@@ -108,20 +120,22 @@ class WrappingHeader(QHeaderView):
         if self._fitting or self.model() is None:
             return
         self._fitting = True
-        flags = Qt.AlignCenter
-        height = self.fontMetrics().height() + 14
+        metrics = self.fontMetrics()
+        line = metrics.lineSpacing()
+        padding = 8
+        height = line + padding
+        limit = self._max_lines * line + padding
         for index in range(self.count()):
             if self.isSectionHidden(index):
                 continue
             text = self.model().headerData(index, Qt.Horizontal, Qt.DisplayRole)
             if text is None:
                 continue
-            width = max(self.sectionSize(index) - 16, 48)
+            width = max(self.sectionSize(index), 1)
             prepared = self._wrap_header(text, width)
-            bounds = self.fontMetrics().boundingRect(
-                0, 0, width, 500, flags, prepared
-            )
-            height = max(height, bounds.height() + 14)
+            lines = prepared.count("\n") + 1
+            height = max(height, lines * line + padding)
+        height = min(height, limit)
         if self.height() != height:
             self.setFixedHeight(height)
         self._fitting = False
@@ -143,10 +157,24 @@ class WrappingHeader(QHeaderView):
         if text is not None:
             painter.setPen(self._section_text_color())
             painter.setClipRect(rect)
-            width = max(rect.adjusted(6, 4, -6, -4).width(), 48)
             painter.drawText(
-                rect.adjusted(6, 4, -6, -4),
+                rect.adjusted(0, 2, 0, -2),
                 int(Qt.AlignCenter),
-                self._wrap_header(text, width),
+                self._wrap_header(text, max(rect.width(), 1)),
             )
         painter.restore()
+
+    def viewportEvent(self, event):
+        if event.type() == QEvent.ToolTip and self.model() is not None:
+            index = self.logicalIndexAt(event.pos())
+            text = None
+            if index >= 0:
+                text = self.model().headerData(
+                    index, Qt.Horizontal, Qt.DisplayRole
+                )
+            if text:
+                QToolTip.showText(event.globalPos(), str(text), self.viewport())
+            else:
+                QToolTip.hideText()
+            return True
+        return super().viewportEvent(event)

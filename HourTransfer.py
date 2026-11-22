@@ -41,6 +41,7 @@ class HourTransfer:
             row_data,
         )
         self.leftTableView.reset()
+        self.rightTableView.resizeColumnsToContents()
 
     def check_hours(self, row_data):
         """func."""
@@ -73,3 +74,4 @@ class HourTransfer:
             return
         DH.move_rows(model, self.model1, selected_indexes, row_data)
         self.rightTableView.reset()
+        self.leftTableView.resizeColumnsToContents()

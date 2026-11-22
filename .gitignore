@@ -11,5 +11,3 @@ DB/*.db
 .ruff_cache/
 .pytest_cache/
 __pycache__/
-Example/db/
-Example/output/

@@ -3,7 +3,14 @@
 from openpyxl import load_workbook
 
 import Models.SqlHandler as SQH
-from Example.run_example import TABLE_LIMIT, TEACHER_LABEL, TEACHER_NAME, export_sample
+from Example.run_example import (
+    TABLE_LIMIT,
+    TEACHER_LABEL,
+    TEACHER_NAME,
+    export_sample,
+    first_semester_record,
+    load_records,
+)
 
 
 def _use_temp_db(monkeypatch, tmp_path):
@@ -38,10 +45,14 @@ def test_export_sample(monkeypatch, tmp_path):
     vesna_row = markers[1][1]
     itogo_row = markers[2][1]
     assert osen_row < vesna_row < itogo_row
-    assert sheet.cell(row=osen_row + 1, column=7).value == "Математика"
-    assert sheet.cell(row=osen_row + 1, column=12).value == 18
-    assert sheet.cell(row=vesna_row + 1, column=7).value == "Физика"
-    assert sheet.cell(row=vesna_row + 1, column=12).value == 20
+    autumn = first_semester_record(1)
+    spring = first_semester_record(2)
+    assert sheet.cell(row=osen_row + 1, column=7).value == autumn["discipline"]
+    assert sheet.cell(row=osen_row + 1, column=12).value == autumn["hours"]["лек"]
+    assert sheet.cell(row=vesna_row + 1, column=7).value == spring["discipline"]
+    assert sheet.cell(row=vesna_row + 1, column=12).value == spring["hours"]["лек"]
+    assert vesna_row - osen_row > 20
+    assert itogo_row - vesna_row > 20
     assert sheet["E3"].value == TEACHER_NAME
     assert sheet["E1"].value == "Индивидуальный план на 2025/2026 уч.год"
     assert sheet["AA3"].value == TABLE_LIMIT
@@ -51,8 +62,11 @@ def test_export_sample(monkeypatch, tmp_path):
     texts = []
     for row in general_sheet.iter_rows(values_only=True):
         texts.extend(cell for cell in row if isinstance(cell, str))
-    assert "Математика" in texts
-    assert "Физика" in texts
+    assert autumn["discipline"] in texts
+    assert spring["discipline"] in texts
+    assert "Руководство аспирантом (Соколов А.А., Егорова М.В.)" in texts
+    assert "ИВТ-401" in texts
+    assert "09.04.01 Информатика и вычислительная техника" in texts
 
     stats = load_workbook(result["statistics"])
     values = []
@@ -60,4 +74,10 @@ def test_export_sample(monkeypatch, tmp_path):
         values.extend(row)
     assert TEACHER_LABEL in values
     assert result["hours"] in values
-    assert result["hours"] == 72
+    assert result["rows"] == len(load_records())
+    assert result["rows"] > 70
+    assert result["hours"] > 3000
+    assert len(SQH.select_all_from_table("teachers")) == 11
+    assert len(SQH.select_all_from_table("workTables")) == 12
+    assert len(SQH.select_all_from_table("kafedraGroups")) == 16
+    assert len(SQH.select_all_from_table("disciplines")) > 30

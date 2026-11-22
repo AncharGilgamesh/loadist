@@ -192,6 +192,11 @@ class MainWindow(HourTransfer, KafedraRecords, QMainWindow):
             view.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
             view.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)
             view.setHorizontalHeader(WrappingHeader(view))
+            if view.objectName() in ("leftTableView", "rightTableView"):
+                header = view.horizontalHeader()
+                header.setSectionResizeMode(QHeaderView.Interactive)
+                header.setStretchLastSection(False)
+                header.setMinimumSectionSize(56)
             self._give_extra_space(view)
             view.verticalHeader().setHighlightSections(False)
             if view.objectName() in {
